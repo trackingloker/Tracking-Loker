@@ -333,5 +333,5 @@ if __name__ == "__main__":
 
 # Uji situs karier perusahaan (karier.py) ikut berjalan lewat "python3 -m unittest test_update" di GitHub Actions.
 from test_karier import (  # noqa: E402,F401
-    TestApiPublik, TestCek, TestHalamanHtml, TestLokasi, TestPenarikanHarian, TestWorkday,
+    TestApiPublik, TestCek, TestHalamanDaftar, TestHalamanHtml, TestLokasi, TestPenarikanHarian, TestWorkday,
 )

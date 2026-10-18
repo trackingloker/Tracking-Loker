@@ -7,7 +7,9 @@
   "industri": "Perbankan",
   "web": "https://www.bca.co.id",
   "situs": [
-   "https://karir.bca.co.id/"
+   "https://karir.bca.co.id/",
+   "https://karir.bca.co.id/karir",
+   "https://karir.bca.co.id/karir?audience=experienced"
   ]
  },
  {
@@ -19,7 +21,15 @@
   "web": "https://bri.co.id",
   "situs": [
    "https://e-recruitment.bri.co.id/",
-   "https://bri.co.id/karir"
+   "https://bri.co.id/karir",
+   "https://e-recruitment.bri.co.id/jobs"
+  ],
+  "coba": [
+   {
+    "ats": "html",
+    "url": "https://e-recruitment.bri.co.id/jobs",
+    "pola": "/jobs/view/"
+   }
   ]
  },
  {
@@ -30,7 +40,21 @@
   "industri": "Perbankan",
   "web": "https://www.bankmandiri.co.id",
   "situs": [
-   "https://www.bankmandiri.co.id/karir"
+   "https://www.bankmandiri.co.id/karir",
+   "https://jobs.talentics.id/pt-bank-mandiri-persero-tbk"
+  ],
+  "coba": [
+   {
+    "ats": "html",
+    "url": "https://jobs.talentics.id/pt-bank-mandiri-persero-tbk",
+    "pola": "jobs\\.talentics\\.id/pt-bank-mandiri-persero-tbk/[a-z0-9-]+"
+   },
+   {
+    "ats": "html",
+    "url": "https://www.bankmandiri.co.id/web/guest/mandiri-career",
+    "pola": "jobs\\.talentics\\.id/pt-bank-mandiri-persero-tbk/",
+    "buang": "\\bCLOSED\\b"
+   }
   ]
  },
  {
@@ -75,7 +99,9 @@
   "industri": "Perbankan",
   "web": "https://www.permatabank.com",
   "situs": [
-   "https://www.permatabank.com/id/karir"
+   "https://www.permatabank.com/karir/type_vacancy/pro",
+   "https://www.permatabank.com/karir/type_vacancy/early",
+   "https://www.permatabank.com/karir/type_vacancy/internship"
   ],
   "global": true
  },
@@ -134,7 +160,8 @@
   "industri": "Perbankan",
   "web": "https://www.bankmega.com",
   "situs": [
-   "https://www.bankmega.com/id/karir/"
+   "https://www.bankmega.com/id/karir/",
+   "https://career.bankmega.com/"
   ]
  },
  {
@@ -168,6 +195,13 @@
   "web": "https://www.btpnsyariah.com",
   "situs": [
    "https://www.btpnsyariah.com/karir"
+  ],
+  "coba": [
+   {
+    "ats": "html",
+    "url": "https://www.btpnsyariah.com/career",
+    "pola": "/career/[0-9a-f]{24}"
+   }
   ]
  },
  {
@@ -178,7 +212,8 @@
   "industri": "Perbankan",
   "web": "https://www.kbbank.co.id",
   "situs": [
-   "https://www.kbbank.co.id/karir"
+   "https://www.kbbank.co.id/karir",
+   "https://www.kbbank.co.id/karir/lowongan"
   ]
  },
  {
@@ -189,7 +224,8 @@
   "industri": "Telekomunikasi",
   "web": "https://www.telkom.co.id",
   "situs": [
-   "https://recruitment.telkom.co.id/"
+   "https://recruitment.telkom.co.id/",
+   "https://recruitment.telkom.co.id/job"
   ]
  },
  {
@@ -201,8 +237,7 @@
   "industri": "Telekomunikasi",
   "web": "https://www.telkomsel.com",
   "situs": [
-   "https://www.telkomsel.com/about-us/careers",
-   "https://www.telkomsel.com/en/about-us/careers/students-graduates"
+   "https://career.telkomsel.com/"
   ]
  },
  {
@@ -236,9 +271,11 @@
   "industri": "Telekomunikasi",
   "web": "https://ioh.co.id",
   "situs": [
-   "https://ioh.co.id/portal/id/iohcareers",
    "https://careers.ioh.co.id/"
-  ]
+  ],
+  "ats": "successfactors",
+  "url": "https://careers.ioh.co.id",
+  "lokasi": ""
  },
  {
   "kode": "EXCL",
@@ -307,20 +344,9 @@
    "https://www.gotocompany.com/en/careers",
    "https://www.gojek.com/careers"
   ],
-  "coba": [
-   {
-    "ats": "lever",
-    "slug": "gojek"
-   },
-   {
-    "ats": "lever",
-    "slug": "GoToGroup"
-   },
-   {
-    "ats": "greenhouse",
-    "slug": "gotogroup"
-   }
-  ]
+  "coba": [],
+  "ats": "lever",
+  "slug": "GoToGroup"
  },
  {
   "kode": "BUKA",
@@ -402,7 +428,7 @@
   "industri": "Media",
   "web": "https://www.scm.co.id",
   "situs": [
-   "https://www.scm.co.id/karir"
+   "https://www.scm.co.id/career-opportunities"
   ]
  },
  {
@@ -414,7 +440,7 @@
   "web": "https://www.astra.co.id",
   "situs": [
    "https://career.astra.co.id/",
-   "https://www.astra.co.id/Career"
+   "https://career.astra.co.id/vacancy"
   ]
  },
  {
@@ -426,7 +452,15 @@
   "industri": "Alat Berat & Pertambangan",
   "web": "https://www.unitedtractors.com",
   "situs": [
-   "https://www.unitedtractors.com/career/"
+   "https://www.unitedtractors.com/career/",
+   "https://jobs.talentics.id/career-unitedtractors"
+  ],
+  "coba": [
+   {
+    "ats": "html",
+    "url": "https://jobs.talentics.id/career-unitedtractors",
+    "pola": "jobs\\.talentics\\.id/career-unitedtractors/[a-z0-9-]+"
+   }
   ]
  },
  {
@@ -450,7 +484,7 @@
   "industri": "Perkebunan",
   "web": "https://www.astra-agro.co.id",
   "situs": [
-   "https://www.astra-agro.co.id/karir/"
+   "https://www.astra-agro.co.id/id/lowongan-pekerjaan/"
   ]
  },
  {
@@ -498,7 +532,8 @@
   "industri": "Pembiayaan",
   "web": "https://www.fifgroup.co.id",
   "situs": [
-   "https://www.fifgroup.co.id/karir"
+   "https://www.fifgroup.co.id/karir",
+   "https://www.fifgroup.co.id/karir/lowongan"
   ]
  },
  {
@@ -545,8 +580,11 @@
   "industri": "Petrokimia",
   "web": "https://www.chandra-asri.com",
   "situs": [
-   "https://www.chandra-asri.com/careers"
-  ]
+   "https://careers.chandra-asri.com/"
+  ],
+  "ats": "successfactors",
+  "url": "https://careers.chandra-asri.com",
+  "lokasi": ""
  },
  {
   "kode": "CUAN",
@@ -578,9 +616,11 @@
   "industri": "Pertambangan Tembaga & Emas",
   "web": "https://www.amman.co.id",
   "situs": [
-   "https://www.amman.co.id/karir",
-   "https://www.amman.co.id/en/careers"
-  ]
+   "https://careers.amman.co.id/"
+  ],
+  "ats": "successfactors",
+  "url": "https://careers.amman.co.id",
+  "lokasi": ""
  },
  {
   "kode": "ADRO",
@@ -590,7 +630,7 @@
   "industri": "Energi & Mineral",
   "web": "https://www.alamtri.com",
   "situs": [
-   "https://www.alamtri.com/careers"
+   "https://www.adarocareer.com/"
   ]
  },
  {
@@ -601,7 +641,7 @@
   "industri": "Pertambangan Batu Bara",
   "web": "https://www.adaroindonesia.com",
   "situs": [
-   "https://www.adaroindonesia.com/careers"
+   "https://www.adarocareer.com/"
   ]
  },
  {
@@ -613,7 +653,7 @@
   "industri": "Pertambangan",
   "web": "https://www.alamtriminerals.com",
   "situs": [
-   "https://www.alamtriminerals.com/careers"
+   "https://www.adarocareer.com/"
   ]
  },
  {
@@ -625,7 +665,7 @@
   "industri": "Pertambangan Emas",
   "web": "https://www.merdekagold.com",
   "situs": [
-   "https://merdekacoppergold.com/en/careers/"
+   "https://merdekacoppergold.com/karier/lowongan/"
   ]
  },
  {
@@ -636,7 +676,7 @@
   "industri": "Pertambangan",
   "web": "https://merdekacoppergold.com",
   "situs": [
-   "https://merdekacoppergold.com/en/careers/"
+   "https://merdekacoppergold.com/karier/lowongan/"
   ]
  },
  {
@@ -670,7 +710,7 @@
   "industri": "Pertambangan Batu Bara",
   "web": "https://www.bumiresources.com",
   "situs": [
-   "https://www.kpc.co.id/careers"
+   "https://www.bumiresources.com/en/career"
   ]
  },
  {
@@ -681,7 +721,7 @@
   "industri": "Pertambangan Batu Bara",
   "web": "https://www.ptba.co.id",
   "situs": [
-   "https://www.ptba.co.id/karir"
+   "https://www.ptba.co.id/id/career/growing-together/job-vacancy"
   ]
  },
  {
@@ -703,16 +743,15 @@
   "industri": "Pertambangan Nikel",
   "web": "https://www.vale.com/indonesia",
   "situs": [
-   "https://www.vale.com/indonesia/careers"
+   "https://www.valeindonesia.com/indonesia/career.html"
   ],
-  "coba": [
-   {
-    "ats": "successfactors",
-    "url": "https://jobs.vale.com",
-    "lokasi": "Indonesia"
-   }
-  ],
-  "global": true
+  "coba": [],
+  "ats": "html",
+  "url": "https://www.valeindonesia.com/indonesia/career.html",
+  "pola": "/documents/d/guest/\\d{8}",
+  "judul_regex": "(?P<date>\\d{2}/\\d{2}/\\d{4})\\s*-\\s*Job vacanc\\w* for (?P<loc>.+?)\\s+-\\s+(?P<title>.+)$",
+  "format_tanggal": "%m/%d/%Y",
+  "maks_hari": 60
  },
  {
   "kode": "ITMG",
@@ -733,7 +772,7 @@
   "industri": "Energi",
   "web": "https://www.indikaenergy.co.id",
   "situs": [
-   "https://www.indikaenergy.co.id/careers/"
+   "https://indikaenergy.co.id/vacancies/"
   ]
  },
  {
@@ -766,7 +805,7 @@
   "industri": "Minyak & Gas",
   "web": "https://www.medcoenergi.com",
   "situs": [
-   "https://www.medcoenergi.com/en/careers"
+   "https://www.medcoenergi.com/en/career/join-us/"
   ]
  },
  {
@@ -777,7 +816,8 @@
   "industri": "Gas",
   "web": "https://www.pgn.co.id",
   "situs": [
-   "https://www.pgn.co.id/karir"
+   "https://www.pgn.co.id/karir",
+   "https://recruitment.pertamina.com/"
   ]
  },
  {
@@ -788,7 +828,7 @@
   "industri": "Energi Panas Bumi",
   "web": "https://pge.pertamina.com",
   "situs": [
-   "https://pge.pertamina.com/karir"
+   "https://recruitment.pertamina.com/"
   ]
  },
  {
@@ -865,7 +905,7 @@
   "industri": "Properti",
   "web": "https://www.sinarmasland.com",
   "situs": [
-   "https://www.sinarmasland.com/career"
+   "https://growithus.sinarmasland.com/job-vacancy"
   ]
  },
  {
@@ -931,6 +971,13 @@
   "web": "https://www.map.co.id",
   "situs": [
    "https://www.map.co.id/careers/"
+  ],
+  "coba": [
+   {
+    "ats": "html",
+    "url": "https://www.map.co.id/careers/",
+    "pola": "darwinbox\\.com/ms/candidatev2/[^/]+/careers/jobDetails/"
+   }
   ]
  },
  {
@@ -940,10 +987,7 @@
   "grup": "MAP",
   "induk": "MAPI",
   "industri": "Ritel",
-  "web": "https://www.map-active.com",
-  "situs": [
-   "https://www.map.co.id/careers/"
-  ]
+  "web": "https://www.map-active.com"
  },
  {
   "kode": "ACES",
@@ -964,7 +1008,7 @@
   "industri": "Ritel Elektronik",
   "web": "https://www.erajaya.com",
   "situs": [
-   "https://www.erajaya.com/career"
+   "http://career.erajaya.com/"
   ]
  },
  {
@@ -975,8 +1019,8 @@
   "industri": "Tembakau",
   "web": "https://www.sampoerna.com",
   "situs": [
-   "https://www.sampoerna.com/id/karir",
-   "https://www.pmi.com/careers"
+   "https://join.pmicareers.com/gb/en/search-results?keywords=&location=Indonesia",
+   "https://www.sampoerna.com/id/karir"
   ],
   "global": true
  },
@@ -1015,7 +1059,9 @@
   "situs": [
    "https://www.kalbe.co.id/id/karir",
    "https://career.kalbe.co.id/"
-  ]
+  ],
+  "ats": "workday",
+  "url": "https://kalbe.wd102.myworkdayjobs.com/External"
  },
  {
   "kode": "SIDO",
@@ -1025,7 +1071,7 @@
   "industri": "Farmasi",
   "web": "https://www.sidomuncul.co.id",
   "situs": [
-   "https://www.sidomuncul.co.id/id/karir.html"
+   "https://www.sidomuncul.co.id/current_vacancies.html"
   ]
  },
  {
@@ -1059,7 +1105,9 @@
   "web": "https://www.japfacomfeed.co.id",
   "situs": [
    "https://www.japfacomfeed.co.id/id/karir"
-  ]
+  ],
+  "ats": "workday",
+  "url": "https://japfa.wd102.myworkdayjobs.com/External"
  },
  {
   "kode": "AVIA",
@@ -1142,7 +1190,10 @@
   "label": "Capital Financial",
   "grup": "Capital",
   "industri": "Jasa Keuangan",
-  "web": "https://www.capitalfinancial.co.id"
+  "web": "https://www.capitalfinancial.co.id",
+  "situs": [
+   "https://recruitment.capitalfinancial.co.id/"
+  ]
  },
  {
   "kode": "CTRA",
@@ -1185,7 +1236,8 @@
   "industri": "Semen",
   "web": "https://www.sig.id",
   "situs": [
-   "https://www.sig.id/karir"
+   "https://www.sig.id/karir",
+   "https://www.sig.id/lowongan-kerja"
   ]
  },
  {
@@ -1196,15 +1248,9 @@
   "industri": "Semen",
   "web": "https://www.indocement.co.id",
   "situs": [
-   "https://www.indocement.co.id/karir"
+   "https://www.indocement.co.id/id/jobs"
   ],
-  "coba": [
-   {
-    "ats": "successfactors",
-    "url": "https://jobs.heidelbergmaterials.com",
-    "lokasi": "Indonesia"
-   }
-  ],
+  "coba": [],
   "global": true
  },
  {
@@ -1226,8 +1272,12 @@
   "industri": "Jasa Pertambangan & Konstruksi",
   "web": "https://www.petrosea.com",
   "situs": [
-   "https://www.petrosea.com/careers"
-  ]
+   "https://www.petrosea.com/careers",
+   "https://career.petrosea.com/"
+  ],
+  "ats": "successfactors",
+  "url": "https://career.petrosea.com",
+  "lokasi": ""
  },
  {
   "kode": "GEMS",
@@ -1237,7 +1287,8 @@
   "industri": "Pertambangan Batu Bara",
   "web": "https://www.goldenenergymines.com",
   "situs": [
-   "https://www.goldenenergymines.com/career"
+   "https://www.goldenenergymines.com/career",
+   "https://recruitment.sinarmasmining.com/"
   ]
  },
  {
@@ -1261,6 +1312,13 @@
   "web": "https://www.cimory.com",
   "situs": [
    "https://www.cimory.com/career"
+  ],
+  "coba": [
+   {
+    "ats": "html",
+    "url": "https://www.cimory.com/career",
+    "pola": "jobstreet\\.com/(id/)?job/\\d+|forms\\.gle/|bit\\.ly/"
+   }
   ]
  },
  {
@@ -1305,7 +1363,7 @@
   "industri": "Bahan Bangunan",
   "web": "https://www.impack-pratama.com",
   "situs": [
-   "https://www.impack-pratama.com/career"
+   "https://careers.impack-pratama.com/"
   ]
  },
  {

@@ -11,6 +11,8 @@ sistem rekrutmen (ATS) yang sama, jadi satu adapter melayani banyak perusahaan.
   oracle           Oracle Recruiting Cloud, API CandidateExperience
   radancy          Radancy/TalentBrew (mis. careers.unilever.com), halaman lowongan per negara
   jsonld           Situs apa pun yang memasang data JobPosting (schema.org) di halaman lowongannya
+  html             Halaman daftar lowongan biasa: judul dari teks tautan, judul kartu, baris tabel, atau
+                   halaman detailnya; lokasi dan batas lamaran dari teks di sekitar kartu
 
 Selain itu ada mode cek (python3 update.py --cek) yang memeriksa situs karier semua perusahaan
 dan menulis cek-karier.json: platform yang terdeteksi, tautan lowongan, dan hasil uji adapter.
@@ -21,6 +23,7 @@ Hanya pustaka standar Python.
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import re
@@ -36,7 +39,7 @@ UA = "Mozilla/5.0 (compatible; TrackingLoker/1.0; +https://github.com/trackinglo
 MAX_BYTES = 4_000_000
 DEFAULT_CAP = 300          # batas lowongan per perusahaan per hari
 DETAIL_CAP = 40            # halaman detail baru (jsonld) per perusahaan per hari
-SUPPORTED = {"workday", "smartrecruiters", "workable", "successfactors", "oracle", "radancy", "jsonld"}
+SUPPORTED = {"workday", "smartrecruiters", "workable", "successfactors", "oracle", "radancy", "jsonld", "html"}
 
 
 def log(msg: str) -> None:
@@ -119,13 +122,24 @@ def strip_tags(text: str) -> str:
     return clean(re.sub(r"<[^>]+>", " ", text or ""))
 
 
-def epoch(value, now: datetime | None = None) -> int:
-    """Tanggal dalam berbagai bentuk menjadi detik epoch. 0 jika tak terbaca."""
+BULAN = {"januari": "January", "februari": "February", "maret": "March", "mei": "May", "juni": "June", "juli": "July",
+         "agustus": "August", "oktober": "October", "desember": "December", "agu": "Aug", "agt": "Aug", "okt": "Oct",
+         "des": "Dec", "nopember": "November", "pebruari": "February"}
+
+
+def epoch(value, now: datetime | None = None, fmt: str = "") -> int:
+    """Tanggal dalam berbagai bentuk menjadi detik epoch. 0 jika tak terbaca. fmt: format strptime khusus."""
     if not value:
         return 0
     if isinstance(value, (int, float)):
         return int(value / 1000) if value > 10_000_000_000 else int(value)
     text = clean(value)
+    text = re.sub(r"\b(" + "|".join(BULAN) + r")\b\.?", lambda m: BULAN[m.group(1).lower()], text, flags=re.I)
+    if fmt:
+        try:
+            return int(datetime.strptime(text, fmt).replace(tzinfo=WIB).timestamp())
+        except ValueError:
+            return 0
     now = now or datetime.now(WIB)
     low = text.lower()
     # Workday: "Posted Today", "Posted Yesterday", "Posted 5 Days Ago", "Posted 30+ Days Ago"
@@ -141,10 +155,10 @@ def epoch(value, now: datetime | None = None) -> int:
         return int((dt if dt.tzinfo else dt.replace(tzinfo=WIB)).timestamp())
     except ValueError:
         pass
-    for fmt in ("%b %d, %Y", "%d %b %Y", "%d %B %Y", "%B %d, %Y", "%d/%m/%Y", "%Y/%m/%d", "%a, %d %b %Y %H:%M:%S %z",
-                "%a, %d %b %Y %H:%M:%S %Z", "%d-%m-%Y"):
+    for form in ("%b %d, %Y", "%d %b %Y", "%d %B %Y", "%B %d, %Y", "%d/%m/%Y", "%Y/%m/%d", "%a, %d %b %Y %H:%M:%S %z",
+                 "%a, %d %b %Y %H:%M:%S %Z", "%d-%m-%Y", "%b %Y, %d", "%B %Y, %d", "%d %b, %Y", "%d %B, %Y"):
         try:
-            dt = datetime.strptime(text, fmt)
+            dt = datetime.strptime(text, form)
             return int((dt if dt.tzinfo else dt.replace(tzinfo=WIB)).timestamp())
         except ValueError:
             continue
@@ -202,6 +216,7 @@ CITY_ALIASES = {
     "lampung": ("Kota Bandar Lampung", "Lampung"), "jambi": ("Kota Jambi", "Jambi"), "makassar": ("Kota Makassar", "Sulawesi Selatan"),
     "manado": ("Kota Manado", "Sulawesi Utara"), "kendari": ("Kota Kendari", "Sulawesi Tenggara"),
     "morowali": ("Kab. Morowali", "Sulawesi Tengah"), "sorowako": ("Kab. Luwu Timur", "Sulawesi Selatan"),
+    "east luwu": ("Kab. Luwu Timur", "Sulawesi Selatan"), "luwu timur": ("Kab. Luwu Timur", "Sulawesi Selatan"),
     "balikpapan": ("Kota Balikpapan", "Kalimantan Timur"), "samarinda": ("Kota Samarinda", "Kalimantan Timur"),
     "banjarmasin": ("Kota Banjarmasin", "Kalimantan Selatan"), "pontianak": ("Kota Pontianak", "Kalimantan Barat"),
     "tabalong": ("Kab. Tabalong", "Kalimantan Selatan"), "sumbawa": ("Kab. Sumbawa Barat", "Nusa Tenggara Barat"),
@@ -209,13 +224,12 @@ CITY_ALIASES = {
     "timika": ("Kab. Mimika", "Papua Tengah"), "jayapura": ("Kota Jayapura", "Papua"), "ambon": ("Kota Ambon", "Maluku"),
     "halmahera": ("Kab. Halmahera Selatan", "Maluku Utara"),
 }
-SPECIFIC = {k for k in CITY_ALIASES if k in (
-    "bsd", "serpong", "south tangerang", "tangerang selatan", "cikarang", "sorowako", "morowali", "timika", "tabalong",
-    "sumbawa", "halmahera") or re.search(r"(south|north|east|west|central) jakarta|jakarta (selatan|utara|timur|barat|pusat)", k)}
 FOREIGN = re.compile(r"\b(singapore|malaysia|kuala lumpur|thailand|bangkok|vietnam|philippines|manila|india|china|japan|"
                      r"australia|united states|usa|united kingdom|london|hong kong|taiwan|korea|netherlands|germany|"
                      r"switzerland|dubai|uae|brazil|mexico|canada|france|spain|italy|poland)\b")
 _index_cache: dict[int, list] = {}
+# Nama kota/kabupaten yang juga kata sehari-hari ("Kotabaru" → "baru", "Kota Batu" → "batu bara").
+AMBIGUOUS = {"baru", "batu", "bone", "buru", "pati", "raya", "jaya", "ende", "sigi", "muna", "alor", "kaur", "bima"}
 
 
 def _city_index(refs: dict) -> list:
@@ -227,7 +241,7 @@ def _city_index(refs: dict) -> list:
     seen: dict[str, tuple[str, str]] = {}
     for name, pid in (refs.get("cities") or {}).values():
         base = re.sub(r"^(kota adm\.|kota administrasi|kota|kabupaten|kab\.)\s+", "", name.lower()).strip()
-        if len(base) < 4:
+        if len(base) < 4 or base in AMBIGUOUS:
             continue
         # Nama yang sama untuk kota dan kabupaten: kota didahulukan.
         if base not in seen or name.lower().startswith("kota"):
@@ -240,34 +254,46 @@ def _city_index(refs: dict) -> list:
 def place(text: str, refs: dict | None = None, strict: bool = False) -> tuple[str, str] | None:
     """(kota, provinsi) dari teks lokasi bebas.
 
-    None bila lokasinya jelas di luar Indonesia. strict=True (perusahaan multinasional) juga
-    menolak lokasi yang tidak dikenali sama sekali.
+    Bila ada beberapa nama tempat, yang paling awal di teks dipakai (teks disusun dari yang paling dekat
+    dengan judul lowongan). None bila lokasinya jelas di luar Indonesia. strict=True (perusahaan
+    multinasional) juga menolak lokasi yang tidak dikenali sama sekali.
     """
     refs = refs or {}
     low = " " + clean(text).lower() + " "
     if not low.strip():
         return None if strict else ("", "")
-    # Nama lengkap "Kabupaten X" / "Kab. X" / "Kota X" didahulukan supaya kabupaten tidak tertukar dengan kotanya.
+    provinces = refs.get("provinces") or {}
+    found = []  # (posisi, prioritas, -panjang, kota, provinsi)
+    # Nama lengkap "Kabupaten X" / "Kab. X" / "Kota X" paling tepat, jadi tidak tertukar kabupaten dengan kotanya.
     for name, pid in (refs.get("cities") or {}).values():
         n = name.lower()
-        variants = {n, n.replace("kab. ", "kabupaten "), n.replace("kota adm. ", "kota ")}
-        if any(len(v) > 8 and v in low for v in variants):
-            return name, (refs.get("provinces") or {}).get(pid, "")
-    # Kawasan yang lebih spesifik (BSD, Cikarang, Sorowako, Jakarta Selatan) didahulukan dari nama kota umum.
-    for group in (SPECIFIC, CITY_ALIASES):
-        for key in sorted(group, key=len, reverse=True):
-            if re.search(rf"(?<![a-z]){re.escape(key)}(?![a-z])", low):
-                return CITY_ALIASES[key]
+        for v in {n, n.replace("kab. ", "kabupaten "), n.replace("kota adm. ", "kota ")}:
+            i = low.find(v)
+            if len(v) > 8 and i != -1:
+                found.append((i, 0, -len(v), name, provinces.get(pid, "")))
+    for key, value in CITY_ALIASES.items():
+        m = re.search(rf"(?<![a-z]){re.escape(key)}(?![a-z])", low)
+        if m:
+            found.append((m.start(), 1, -len(key), *value))
     for key, name, prov in _city_index(refs):
-        if re.search(rf"(?<![a-z]){re.escape(key)}(?![a-z])", low):
-            return name, prov
-    prov_names = {p.lower(): p for p in (refs.get("provinces") or {}).values()}
-    for key in sorted({**prov_names, **PROVINCE_EN}, key=len, reverse=True):
-        if re.search(rf"(?<![a-z]){re.escape(key)}(?![a-z])", low):
-            return "", PROVINCE_EN.get(key) or prov_names[key]
+        m = re.search(rf"(?<![a-z]){re.escape(key)}(?![a-z])", low)
+        if m:
+            found.append((m.start(), 2, -len(key), name, prov))
+    if found:
+        best = min(found, key=lambda x: (x[0], x[2], x[1]))
+        return best[3], best[4]
+    prov_names = {p.lower(): p for p in provinces.values()}
+    hits = []
+    for key in {**prov_names, **PROVINCE_EN}:
+        m = re.search(rf"(?<![a-z]){re.escape(key)}(?![a-z])", low)
+        if m:
+            hits.append((m.start(), -len(key), PROVINCE_EN.get(key) or prov_names[key]))
     for key in ("bali", "banten", "aceh", "riau", "papua", "maluku", "gorontalo", "bengkulu"):
-        if re.search(rf"(?<![a-z]){key}(?![a-z])", low):
-            return "", key.title()
+        m = re.search(rf"(?<![a-z]){key}(?![a-z])", low)
+        if m:
+            hits.append((m.start(), -len(key), key.title()))
+    if hits:
+        return "", min(hits)[2]
     if re.search(r"indonesia|\bidn\b|, id\b|\(id\)", low):
         return "", ""
     if FOREIGN.search(low) or strict:
@@ -370,8 +396,12 @@ def workable(company: dict, now=None) -> list[dict]:
 SF_ROW = re.compile(r'<tr[^>]*class="[^"]*data-row[^"]*"[^>]*>(.*?)</tr>', re.S)
 
 
-def successfactors(company: dict, now=None) -> list[dict]:
-    """Situs karier SuccessFactors RMK: halaman /search/?locationsearch=Indonesia (25 baris per halaman)."""
+def successfactors(company: dict, now=None, known: dict | None = None) -> list[dict]:
+    """Situs karier SuccessFactors RMK: halaman /search/ (25 baris per halaman).
+
+    Bila tabel hasil pencarian tak terbaca, daftar diambil dari sitemap.xml dan isinya dari halaman detail
+    (judul dan lokasi ditandai microdata itemprop di situs RMK).
+    """
     base = company["url"].rstrip("/")
     out, start, cap = [], 0, cap_of(company)
     while start < cap:
@@ -392,12 +422,46 @@ def successfactors(company: dict, now=None) -> list[dict]:
             break
         start += len(rows)
         sleep(0.4)
+    if not out:
+        out = _sf_sitemap(base, company, known or {})
     seen, uniq = set(), []
     for j in out:
         if j["id"] not in seen:
             seen.add(j["id"])
             uniq.append(j)
     return uniq[:cap]
+
+
+def _sf_sitemap(base: str, company: dict, known: dict) -> list[dict]:
+    text, _ = get_text(base + "/sitemap.xml")
+    links = [u for u in re.findall(r"<loc>\s*([^<\s]+)\s*</loc>", text) if re.search(r"/job/[^/]+/\d+/?$", u)]
+    out, fresh = [], 0
+    for link in links[:cap_of(company)]:
+        ident = re.search(r"/(\d+)/?$", link).group(1)
+        if link in known:
+            old = known[link]
+            out.append(raw_job(ident, old["title"], link, f"{old.get('city', '')} {old.get('province', '')}", old.get("posted", 0)))
+            continue
+        if fresh >= int(company.get("detail") or DETAIL_CAP):
+            continue
+        fresh += 1
+        try:
+            page, _ = get_text(link)
+        except Exception:  # noqa: BLE001
+            continue
+        prop = lambda name: re.search(rf'itemprop=["\']{name}["\'][^>]*?(?:content=["\']([^"\']+)["\'][^>]*>|>(.*?)</)', page, re.S)  # noqa: E731
+        title = prop("title")
+        title = strip_tags(title.group(1) or title.group(2)) if title else ""
+        if not title:
+            m = re.search(r"<h1[^>]*>(.*?)</h1>", page, re.S)
+            title = strip_tags(m.group(1)) if m else ""
+        where = prop("addressLocality") or prop("jobLocation")
+        posted = prop("datePosted")
+        slug = link.split("/job/")[1].split("/")[0].replace("-", " ")
+        out.append(raw_job(ident, title, link, strip_tags((where.group(1) or where.group(2)) if where else slug),
+                           epoch((posted.group(1) or posted.group(2)) if posted else "")))
+        sleep(0.3)
+    return [j for j in out if j["title"]]
 
 
 def oracle(company: dict, now=None) -> list[dict]:
@@ -583,10 +647,140 @@ def jsonld(company: dict, now=None, known: dict | None = None) -> list[dict]:
     return uniq
 
 
+GENERIC = re.compile(
+    r"^(apply( now| here| di sini)?|lamar( sekarang)?|daftar( sekarang)?|ajukan( sekarang)?|kirim lamaran|"
+    r"lihat( detail| lowongan| selengkapnya| posisi)?|detail( job| pekerjaan| lowongan| posisi)?( vacancy)?|"
+    r"detil pekerjaan|selengkapnya|learn more|read more|more|view( job| details?)?|see (more|details?|vacancies)|"
+    r"klik( di ?sini)?|click here|info(rmasi)? lengkap|job details?|details?|>+|»|→|\W*)$", re.I)
+DEADLINE = re.compile(
+    r"(lamar sebelum|batas(?: akhir)?(?: waktu)?(?: pendaftaran| lamaran| melamar)?|deadline|closing date|close date|"
+    r"berakhir(?: pada)?|ditutup(?: pada)?|apply before|valid until|until|hingga|s\.?d\.?)\s*:?\s*"
+    r"(\d{1,2}[ /.-][A-Za-z0-9]{2,9}[ /.,-]*\d{4}|[A-Za-z]{3,9}\.? \d{4},? \d{1,2}|[A-Za-z]{3,9}\.? \d{1,2},? \d{4})", re.I)
+ANCHOR = re.compile(r"<a\b[^>]*?href=[\"']([^\"']+)[\"'][^>]*>(.*?)</a>", re.S | re.I)
+SOCIAL = re.compile(r"(facebook|instagram|twitter|x\.com|linkedin|youtube|tiktok|wa\.me|whatsapp|mailto:|\.(jpe?g|png|webp|svg)(\?|$))", re.I)
+
+
+def _title_near(block: str, row: str) -> str:
+    """Judul kartu lowongan dari HTML di sekitar tautan: baris tabel, judul (h1-h6), atau elemen berkelas judul."""
+    if row:
+        for cell in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row, re.S | re.I):
+            text = strip_tags(cell)
+            if 3 <= len(text) <= 150 and not GENERIC.match(text) and not re.fullmatch(r"[\d\s./-]+", text):
+                return text
+    heads = re.findall(r"<h[1-6][^>]*>(.*?)</h[1-6]>", block, re.S | re.I)
+    for text in map(strip_tags, reversed(heads)):
+        if 3 <= len(text) <= 150 and not GENERIC.match(text):
+            return text
+    for m in reversed(list(re.finditer(
+            r'class=["\'][^"\']*(?:title|judul|position|posisi|job-?name|vacancy|lowongan)[^"\']*["\'][^>]*>(.*?)</',
+            block, re.S | re.I))):
+        text = strip_tags(m.group(1))
+        if 3 <= len(text) <= 150 and not GENERIC.match(text):
+            return text
+    for text in map(strip_tags, reversed(re.findall(r"<(?:strong|b)\b[^>]*>(.*?)</(?:strong|b)>", block, re.S | re.I))):
+        if 3 <= len(text) <= 150 and not GENERIC.match(text):
+            return text
+    return ""
+
+
+def cards(page: str, final: str, company: dict) -> list[dict]:
+    """Kartu lowongan dari satu halaman daftar (tanpa membuka halaman detail).
+
+    Lowongan tanpa judul yang jelas dikembalikan dengan judul kosong dan _detail=True.
+    """
+    pattern = company.get("pola") or JOB_LINK
+    rx = re.compile(company["judul_regex"], re.I | re.S) if company.get("judul_regex") else None
+    drop = re.compile(company["buang"], re.I) if company.get("buang") else None
+    hits: list[tuple] = []
+    texts: dict[str, list] = {}
+    for m in ANCHOR.finditer(page):
+        href = urljoin(final, html.unescape(m.group(1).strip())).split("#")[0]
+        if not re.search(pattern, href, re.I) or SOCIAL.search(href) or href.rstrip("/") == final.rstrip("/"):
+            continue
+        if href not in texts:
+            texts[href] = []
+            hits.append((href, m.start(), m.end()))
+        texts[href].append(strip_tags(m.group(2)))
+    out = []
+    for i, (href, start, end) in enumerate(hits):
+        prev_end = hits[i - 1][2] if i else 0
+        next_start = hits[i + 1][1] if i + 1 < len(hits) else len(page)
+        block = page[max(prev_end, start - 3000):start]
+        after = page[end:min(next_start, end + 700)]
+        row = ""
+        tr = block.lower().rfind("<tr")
+        if tr != -1 and block.lower().rfind("</tr>") < tr:
+            close = page.lower().find("</tr>", end)
+            row = block[tr:] + page[start:close if close != -1 else end]
+        context = strip_tags(re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", block[-1500:] + " " + after, flags=re.S | re.I))
+        anchor = max(texts[href], key=len)
+        title, loc, date = "", "", ""
+        if rx:
+            m = rx.search(anchor) or rx.search(context)
+            if m:
+                found = m.groupdict()
+                title, loc, date = found.get("title") or "", found.get("loc") or "", found.get("date") or ""
+        if not title and 4 <= len(anchor) <= 150 and not GENERIC.match(anchor):
+            title = anchor
+        if not title:
+            title = _title_near(block, row)
+        if drop and (drop.search(title) or drop.search(context[-400:])):
+            continue
+        deadline = DEADLINE.search(context)
+        ident = re.sub(r"[^A-Za-z0-9_-]+", "-", urlsplit(href).path.strip("/").split("/")[-1] or href)[-40:].strip("-")
+        out.append({**raw_job(ident or hashlib.md5(href.encode()).hexdigest()[:12], title, href,
+                              loc or company.get("kota") or (f"{title} {strip_tags(row)}" if row else
+                                                             f"{title} {strip_tags(block[-1200:])} {strip_tags(after)}"),
+                              epoch(date, fmt=company.get("format_tanggal", "")) if date else 0,
+                              expires=epoch(deadline.group(2)) if deadline else 0),
+                    "_detail": not title})
+    return out
+
+
+def html_list(company: dict, now=None, known: dict | None = None) -> list[dict]:
+    """Halaman daftar lowongan biasa. Judul yang tak terbaca di daftar diambil dari halaman detailnya."""
+    known = known or {}
+    now = now or datetime.now(WIB)
+    page, final = get_text(company["url"])
+    found = cards(page, final, company)
+    out, fresh = [], 0
+    max_age = int(company.get("maks_hari") or 0)
+    for job in found[:cap_of(company)]:
+        if job.pop("_detail"):
+            old = known.get(job["link"])
+            if old:
+                job["title"] = old["title"]
+            elif fresh < int(company.get("detail") or DETAIL_CAP):
+                fresh += 1
+                try:
+                    detail, url = get_text(job["link"])
+                    nodes = jobpostings(detail)
+                    if nodes:
+                        job = {**from_jsonld(nodes[0], url), "id": job["id"], "link": job["link"]}
+                    else:
+                        m = (re.search(r"<h1[^>]*>(.*?)</h1>", detail, re.S | re.I)
+                             or re.search(r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)', detail, re.I)
+                             or re.search(r"<title[^>]*>(.*?)</title>", detail, re.S | re.I))
+                        job["title"] = strip_tags(m.group(1)).split(" | ")[0] if m else ""
+                        job["loc"] = company.get("kota") or f"{job['title']} {strip_tags(detail)[:3000]}"
+                    sleep(0.3)
+                except Exception:  # noqa: BLE001
+                    continue
+        if not job["title"]:
+            continue
+        if job["expires"] and job["expires"] < now.timestamp():
+            continue
+        if max_age and job["posted"] and job["posted"] < now.timestamp() - max_age * 86400:
+            continue
+        out.append(job)
+    return out
+
+
 ADAPTERS = {
     "workday": workday, "smartrecruiters": smartrecruiters, "workable": workable,
-    "successfactors": successfactors, "oracle": oracle, "radancy": radancy, "jsonld": jsonld,
+    "successfactors": successfactors, "oracle": oracle, "radancy": radancy, "jsonld": jsonld, "html": html_list,
 }
+WITH_KNOWN = {"jsonld", "html", "successfactors"}
 
 
 def source_key(company: dict) -> str:
@@ -598,7 +792,8 @@ def fetch_company(company: dict, refs: dict, known: dict | None = None, now: dat
     """Lowongan berlokasi di Indonesia dari satu perusahaan. Mengembalikan (lowongan, jumlah_mentah)."""
     kind = company["ats"].lower()
     adapter = ADAPTERS[kind]
-    raw = adapter(company, now, known) if kind == "jsonld" else adapter(company, now)
+    known = known or {}
+    raw = adapter(company, now, known) if kind in WITH_KNOWN else adapter(company, now)
     key = source_key(company)
     name = clean(company.get("nama"))
     jobs = []
@@ -610,7 +805,7 @@ def fetch_company(company: dict, refs: dict, known: dict | None = None, now: dat
         where = place(r["loc"], refs, strict=bool(company.get("global")))
         if where is None or not r["title"] or not r["id"]:
             continue
-        ident = re.sub(r"[^A-Za-z0-9_-]+", "", r["id"])[-40:] or str(abs(hash(r["link"])) % 10**10)
+        ident = re.sub(r"[^A-Za-z0-9_-]+", "", r["id"])[-40:] or hashlib.md5(r["link"].encode()).hexdigest()[:12]
         jobs.append({
             "id": f"{kind[:2]}-{key}-{ident}",
             "title": r["title"],
@@ -625,7 +820,8 @@ def fetch_company(company: dict, refs: dict, known: dict | None = None, now: dat
             "edu": "",
             "smin": r["smin"],
             "smax": r["smax"],
-            "posted": r["posted"] or int((now or datetime.now(WIB)).timestamp()),
+            # Tanpa tanggal tayang: pakai tanggal pertama kali terlihat supaya tidak tampak "baru" setiap hari.
+            "posted": r["posted"] or (known.get(r["link"]) or {}).get("posted") or int((now or datetime.now(WIB)).timestamp()),
             "expires": r["expires"],
             "via": f"{kind}:{key}",
             "link": r["link"],
@@ -658,6 +854,10 @@ MARKERS = [
     ("dealls", r"(dealls\.com[^\"'\s<>]*)"),
     ("phenom", r"(phenompeople|cdn\.phenom)"),
     ("google-form", r"(docs\.google\.com/forms[^\"'\s<>]*|forms\.gle/[A-Za-z0-9]+)"),
+    ("talentics", r"jobs\.talentics\.id/([a-z0-9-]+)"),
+    ("darwinbox", r"([a-z0-9-]+\.darwinbox\.(?:com|in)/ms/candidate[^\"'\s<>]*)"),
+    ("jobseeker", r"([a-z0-9-]+\.jobseeker\.software)"),
+    ("sf-rmk", r"(/go/[A-Za-z0-9%,&._-]+/\d+/|/job/[^\"'\s<>]+/\d{6,}/)"),
     ("jsonld", r'"@type"\s*:\s*"JobPosting"'),
 ]
 JOBWORD = re.compile(r"karir|karier|career|job|lowongan|vacanc|recruit|rekrut|apply|lamar|loker|posisi|opening", re.I)
@@ -704,22 +904,38 @@ def inspect_page(page: str, final: str) -> dict:
         "jobposting": len(jobpostings(page)),
         "teks": strip_tags(re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", page, flags=re.S | re.I))[:600],
         "ukuran": len(page),
+        "cuplikan": _snippets(page, final),
     }
 
 
+def _snippets(page: str, final: str) -> list[str]:
+    """Potongan HTML mentah di sekitar dua tautan lowongan pertama, untuk merancang pembaca halaman ini."""
+    out = []
+    for m in ANCHOR.finditer(page):
+        href = urljoin(final, html.unescape(m.group(1)))
+        if re.search(JOB_LINK, href, re.I) and not SOCIAL.search(href) and href.rstrip("/") != final.rstrip("/"):
+            out.append(re.sub(r"\s+", " ", page[max(0, m.start() - 900):m.end() + 300]))
+            if len(out) >= 2:
+                break
+    return out
+
+
 def _bundle_apis(scripts: list[str]) -> list[str]:
-    """Untuk situs aplikasi (SPA): cari alamat API di berkas JavaScript utamanya."""
+    """Untuk situs aplikasi (SPA): cari alamat API dan jalur lowongan di berkas JavaScript utamanya."""
     hits: list[str] = []
-    picks = [s for s in scripts if re.search(r"(main|app|index|bundle|chunk|_next/static)", s, re.I)][:3]
+    picks = [s for s in scripts if re.search(r"(main|app|index|bundle|chunk|_next/static|runtime|vendor)", s, re.I)
+             and not re.search(r"(jquery|bootstrap|gtag|analytics|recaptcha|cloudflare|polyfill)", s, re.I)][:5]
+    pattern = re.compile(r"[\"'`](https?://[^\"'`\s]{6,160}|/?[A-Za-z0-9_-]+(?:/[A-Za-z0-9_{}$.:-]+){1,6}/?(?:\?[^\"'`\s]{0,80})?)[\"'`]")
+    keyword = re.compile(r"api|career|karir|karier|job|vacan|lowongan|recruit|rekrut|posisi|position|opening|loker", re.I)
     for src in picks:
         try:
             code, _ = get_text(src)
         except Exception:  # noqa: BLE001
             continue
-        for m in re.findall(r"[\"'`](https?://[^\"'`\s]{6,160}|/api/[^\"'`\s]{2,120}|/v\d/[^\"'`\s]{2,120})[\"'`]", code):
-            if re.search(r"api|career|karir|job|vacanc|lowongan|recruit|rekrut|posisi", m, re.I) and m not in hits:
-                hits.append(m)
-            if len(hits) >= 40:
+        for m in pattern.findall(code):
+            if keyword.search(m) and not re.search(r"\.(png|jpe?g|svg|css|woff2?|gif|webp|ico)$", m, re.I) and m not in hits:
+                hits.append(m[:200])
+            if len(hits) >= 100:
                 return hits
     return hits
 
@@ -753,7 +969,7 @@ def try_config(company: dict, cfg: dict, refs: dict) -> dict:
             import update  # Greenhouse/Lever/Ashby ada di update.py
             jobs, raw = update.fetch_board({**test, "slug": test.get("slug", "")}, refs.get("provinces") or {})
         return {**cfg, "ok": True, "mentah": raw, "indonesia": len(jobs), "detik": round(time.monotonic() - started, 1),
-                "contoh": [[j["title"], j["city"] or j["province"], j["link"]] for j in jobs[:4]]}
+                "contoh": [[j["title"], j["city"] or j["province"], j["link"]] for j in jobs[:6]]}
     except Exception as err:  # noqa: BLE001
         return {**cfg, "ok": False, "galat": str(err)[:300], "detik": round(time.monotonic() - started, 1)}
 
@@ -803,6 +1019,9 @@ def check_company(company: dict, refs: dict) -> dict:
             entry.update({"status": status, "akhir": final, **inspect_page(page, final)})
             if entry["ukuran"] < 25_000 and entry["skrip"]:
                 entry["api_skrip"] = _bundle_apis(entry["skrip"])
+            found = cards(page, final, {"pola": company.get("pola") or JOB_LINK})
+            entry["kartu"] = {"jumlah": len(found), "tanpa_judul": sum(1 for j in found if j["_detail"]),
+                              "contoh": [[j["title"], j["loc"][:80], j["link"]] for j in found[:8]]}
             for k, v in entry["platform"].items():
                 detected.setdefault(k, [])
                 detected[k] += [x for x in v if x not in detected[k]]
@@ -813,12 +1032,28 @@ def check_company(company: dict, refs: dict) -> dict:
         result["situs"].append(entry)
         return entry
 
-    for url in (company.get("situs") or [])[:4]:
+    for url in (company.get("situs") or [])[:5]:
         visit(url)
     if not any(e.get("status") == 200 for e in result["situs"]) and company.get("web"):
         for path in ("/karir", "/careers", "/career", "/id/karir", "/en/careers"):
             if visit(company["web"].rstrip("/") + path).get("status") == 200:
                 break
+    # Ikuti tautan "Lowongan / Vacancies / Lihat lowongan" satu tingkat lebih dalam.
+    seen = {e["url"] for e in result["situs"]} | {e.get("akhir") for e in result["situs"]}
+    follow = []
+    for entry in [e for e in result["situs"] if e.get("status") == 200]:
+        for text, href in entry.get("tautan", []):
+            if href in seen or SOCIAL.search(href) or re.search(r"\.pdf($|\?)|login|register|masuk|daftar|signin|sign-in", href, re.I):
+                continue
+            if re.search(r"lowongan|vacanc|/jobs?\b|/jobs?/?$|career-opportunit|current_vacancies|job-?list|viewalljobs|"
+                         r"recruitment\.|rekrutmen\.|careers?\.|karir\.|/go/|type_vacancy", href, re.I) \
+                    or re.search(r"lowongan|vacanc|see (all )?(jobs|vacancies)|lihat (semua )?lowongan|cari karir|job opportunit",
+                                 text, re.I):
+                seen.add(href)
+                follow.append(href)
+    follow.sort(key=lambda u: 0 if re.search(r"lowongan|vacanc|job", u, re.I) else 1)
+    for url in follow[:4]:
+        visit(url)
     ok = next((e for e in result["situs"] if e.get("status") == 200), None)
     if ok and not late():
         parts = urlsplit(ok["akhir"])
@@ -826,7 +1061,21 @@ def check_company(company: dict, refs: dict) -> dict:
     if company.get("ats"):
         cfg = {k: company[k] for k in ("ats", "slug", "url", "cari", "lokasi", "pola") if company.get(k)}
         result["uji"].append({**try_config(company, cfg, refs), "sumber": "perusahaan.json"})
-    for cfg in (company.get("coba") or []) + guesses(detected):
+    extra = []
+    for entry in [e for e in result["situs"] if e.get("status") == 200]:
+        parts = urlsplit(entry["akhir"])
+        if "successfactors" in entry.get("platform", {}) and "sf-rmk" in entry.get("platform", {}):
+            extra.append({"ats": "successfactors", "url": f"{parts.scheme}://{parts.netloc}", "lokasi": ""})
+        if entry.get("kartu", {}).get("jumlah", 0) >= 2:
+            extra.append({"ats": "html", "url": entry["akhir"]})
+    for slug in detected.get("talentics", [])[:2]:
+        extra.append({"ats": "html", "url": f"https://jobs.talentics.id/{slug}", "pola": rf"jobs\.talentics\.id/{slug}/[a-z0-9-]+"})
+    tried_html = 0
+    for cfg in (company.get("coba") or []) + guesses(detected) + extra:
+        if cfg.get("ats") == "html":
+            tried_html += 1
+            if tried_html > 3:
+                continue
         if any(u.get("ats") == cfg.get("ats") and u.get("slug") == cfg.get("slug") and u.get("url") == cfg.get("url")
                for u in result["uji"]):
             continue

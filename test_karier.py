@@ -155,6 +155,20 @@ class TestHalamanHtml(Base):
         self.assertEqual(out[0]["link"], "https://jobs.example.com/job/Jakarta-Analyst/1000/")
         self.assertEqual(out[0]["loc"], "Jakarta, ID")
 
+    def test_successfactors_cadangan_sitemap(self):
+        sitemap = ('<urlset><url><loc>https://career.petrosea.com/job/Murung-Raya-Maintenance-Dispatcher-DBK/59988244/</loc></url>'
+                   '<url><loc>https://career.petrosea.com/go/View-All-Jobs/644644/</loc></url></urlset>')
+        detail = ('<h1><span itemprop="title">Maintenance Dispatcher DBK</span></h1>'
+                  '<span itemprop="jobLocation"><span itemprop="address"><span itemprop="addressLocality">Murung Raya</span></span></span>'
+                  '<meta itemprop="datePosted" content="Tue Oct 06 00:00:00 UTC 2026">')
+        self.use({
+            "career.petrosea.com/search/": lambda u, b: ("<p>Tidak ada tabel</p>", "text/html"),
+            "career.petrosea.com/sitemap.xml": lambda u, b: (sitemap, "application/xml"),
+            "career.petrosea.com/job/": lambda u, b: (detail, "text/html"),
+        })
+        out = karier.successfactors({"url": "https://career.petrosea.com", "lokasi": ""})
+        self.assertEqual([(j["id"], j["title"], j["loc"]) for j in out], [("59988244", "Maintenance Dispatcher DBK", "Murung Raya")])
+
     def test_radancy(self):
         html = ('<ul><li><a href="https://careers.unilever.com/en/job/medan/manufacturing-manager/34155/101655148176" data-job-id="1">'
                 '<h2>Manufacturing Manager</h2><span class="job-location">Medan, North Sumatra</span></a></li></ul>')
@@ -195,6 +209,77 @@ class TestHalamanHtml(Base):
         self.assertEqual([c[0] for c in http.calls], ["https://bank.co.id/karir"])
 
 
+class TestHalamanDaftar(Base):
+    def test_judul_kartu_lokasi_dan_batas_lamaran(self):
+        card = ('<div class="card"><span>Lowongan Kerja</span><h5>{t}</h5><p>Lamar Sebelum {d}.</p>'
+                '<a class="btn" href="/jobs/view/{i}">Detil Pekerjaan</a></div>')
+        page = "<main>" + card.format(t="BBAP Mantri Muda – BRI Region 10 Semarang", d="Dec 2026, 31", i="ZBPAQe6v") \
+            + card.format(t="Relationship Manager Kota Medan", d="Jan 2026, 5", i="old1") + "</main>"
+        self.use({"e-recruitment.bri.co.id/jobs": lambda u, b: (page, "text/html")})
+        company = {"nama": "BRI", "ats": "html", "kode": "BBRI", "url": "https://e-recruitment.bri.co.id/jobs", "pola": r"/jobs/view/"}
+        jobs, raw = karier.fetch_company(company, REFS, now=NOW)
+        self.assertEqual(raw, 1)  # yang batas lamarannya sudah lewat dibuang
+        self.assertEqual(jobs[0]["title"], "BBAP Mantri Muda – BRI Region 10 Semarang")
+        self.assertEqual((jobs[0]["city"], jobs[0]["province"]), ("Kota Semarang", "Jawa Tengah"))
+        self.assertEqual(jobs[0]["expires"], int(datetime(2026, 12, 31, tzinfo=karier.WIB).timestamp()))
+        self.assertEqual(jobs[0]["id"], "ht-bbri-ZBPAQe6v")
+
+    def test_baris_tabel_dan_tautan_luar(self):
+        page = ('<table><tr><th>Posisi</th><th>Lokasi</th><th></th></tr>'
+                '<tr><td>Staff Quality Control</td><td>Bogor</td><td><a href="https://id.jobstreet.com/job/89819391">Apply</a></td></tr>'
+                '<tr><td>Sales Supervisor</td><td>Surabaya</td><td><a href="https://forms.gle/Tm8">Apply</a></td></tr></table>')
+        self.use({"cimory.com/career": lambda u, b: (page, "text/html")})
+        jobs, _ = karier.fetch_company({"nama": "Cimory", "ats": "html", "kode": "CMRY", "url": "https://www.cimory.com/career",
+                                        "pola": r"jobstreet\.com/(id/)?job/\d+|forms\.gle/"}, REFS, now=NOW)
+        self.assertEqual([(j["title"], j["city"]) for j in jobs], [("Staff Quality Control", "Kota Bogor"), ("Sales Supervisor", "Kota Surabaya")])
+
+    def test_judul_dari_pola_teks_dan_umur(self):
+        page = ''.join(f'<li><a href="/documents/d/guest/{d.replace("/", "")}_x{i}">&gt; {d} - Job vacancy for {loc} - {t}</a></li>'
+                       for i, (d, loc, t) in enumerate([("10/09/2026", "National", "Snr. Geotech Engineer"),
+                                                        ("10/06/2026", "East Luwu Regency", "Project Engineer"),
+                                                        ("07/02/2026", "National", "Senior Coordinator Legal")]))
+        self.use({"valeindonesia.com": lambda u, b: (page, "text/html")})
+        company = {"nama": "Vale Indonesia", "ats": "html", "kode": "INCO", "url": "https://www.valeindonesia.com/indonesia/career.html",
+                   "pola": r"/documents/d/guest/\d{8}", "format_tanggal": "%m/%d/%Y", "maks_hari": 60,
+                   "judul_regex": r"(?P<date>\d{2}/\d{2}/\d{4})\s*-\s*Job vacanc\w* for (?P<loc>.+?)\s+-\s+(?P<title>.+)$"}
+        jobs, _ = karier.fetch_company(company, REFS, now=NOW)
+        self.assertEqual([j["title"] for j in jobs], ["Snr. Geotech Engineer", "Project Engineer"])
+        self.assertEqual(jobs[1]["city"], "Kab. Luwu Timur")
+        self.assertEqual(jobs[0]["posted"], int(datetime(2026, 10, 9, tzinfo=karier.WIB).timestamp()))
+
+    def test_judul_dari_halaman_detail_sekali_saja(self):
+        page = '<div><a href="/career/672354b8">Learn More</a></div><div><a href="/career/68b55e1b">Learn More</a></div>'
+        http = self.use({
+            "btpnsyariah.com/career/672354b8": lambda u, b: ("<h1>Community Officer</h1><p>Lokasi: Kupang</p>", "text/html"),
+            "btpnsyariah.com/career/68b55e1b": lambda u, b: ("<title>Business Coach | BTPN Syariah</title>", "text/html"),
+            "btpnsyariah.com/career": lambda u, b: (page, "text/html"),
+        })
+        company = {"nama": "BTPN Syariah", "ats": "html", "kode": "BTPS", "url": "https://www.btpnsyariah.com/career",
+                   "pola": r"/career/[0-9a-f]{8}"}
+        jobs, _ = karier.fetch_company(company, REFS, now=NOW)
+        self.assertEqual(sorted(j["title"] for j in jobs), ["Business Coach", "Community Officer"])
+        self.assertEqual(next(j for j in jobs if j["title"] == "Community Officer")["city"], "Kota Kupang")
+        known = {j["link"]: j for j in jobs}
+        http.calls.clear()
+        again, _ = karier.fetch_company(company, REFS, known, now=NOW)
+        self.assertEqual(len(again), 2)
+        self.assertEqual(len(http.calls), 1)  # hanya halaman daftar
+        self.assertEqual({j["posted"] for j in again}, {j["posted"] for j in jobs})  # tanggal tidak "baru" lagi
+
+    def test_lowongan_tutup_dibuang(self):
+        page = ('<div><h4>Banking Staff</h4><span>CLOSED</span><a href="https://jobs.talentics.id/mandiri/banking-staff">Ajukan</a></div>'
+                '<div><h4>Officer Development Program</h4><a href="https://jobs.talentics.id/mandiri/odp">Ajukan</a></div>')
+        self.use({"bankmandiri.co.id": lambda u, b: (page, "text/html")})
+        jobs, _ = karier.fetch_company({"nama": "Mandiri", "ats": "html", "kode": "BMRI", "url": "https://www.bankmandiri.co.id/karir",
+                                        "pola": r"jobs\.talentics\.id/mandiri/", "buang": r"\bCLOSED\b"}, REFS, now=NOW)
+        self.assertEqual([j["title"] for j in jobs], ["Officer Development Program"])
+
+    def test_tanggal_indonesia(self):
+        self.assertEqual(karier.epoch("31 Desember 2026"), int(datetime(2026, 12, 31, tzinfo=karier.WIB).timestamp()))
+        self.assertEqual(karier.epoch("5 Agu 2026"), int(datetime(2026, 8, 5, tzinfo=karier.WIB).timestamp()))
+        self.assertEqual(karier.epoch("Dec 2026, 31"), int(datetime(2026, 12, 31, tzinfo=karier.WIB).timestamp()))
+
+
 class TestCek(Base):
     def test_platform_terdeteksi_dan_dicoba(self):
         page = ('<html><head><title>Karir</title><script src="/static/app.js"></script></head>'
@@ -215,6 +300,25 @@ class TestCek(Base):
         self.assertEqual(res["sitemap"]["isi"][0]["lowongan"], 1)
         self.assertTrue(res["uji"][0]["ok"])
         self.assertEqual(res["uji"][0]["indonesia"], 1)
+
+    def test_ikuti_tautan_lowongan_dan_coba_kartu(self):
+        home = '<a href="/karir/lowongan">Lihat lowongan</a><a href="https://instagram.com/x">IG</a>'
+        listing = ''.join(f'<div><h3>{t}</h3><p>Jakarta</p><a href="/karir/lowongan/{i}">Detail</a></div>'
+                          for i, t in enumerate(["Teller", "Analis Kredit", "Customer Service"]))
+        self.use({
+            "bank.co.id/karir/lowongan/": lambda u, b: ("<h1>x</h1>", "text/html"),
+            "bank.co.id/karir/lowongan": lambda u, b: (listing, "text/html"),
+            "bank.co.id/karir": lambda u, b: (home, "text/html"),
+        })
+        res = karier.check_company({"nama": "Bank", "kode": "BNK", "situs": ["https://bank.co.id/karir"]}, REFS)
+        visited = [e["url"] for e in res["situs"]]
+        self.assertIn("https://bank.co.id/karir/lowongan", visited)
+        lst = next(e for e in res["situs"] if e["url"].endswith("/karir/lowongan"))
+        self.assertEqual(lst["kartu"]["jumlah"], 3)
+        self.assertEqual(lst["kartu"]["contoh"][0][0], "Teller")
+        trial = next(u for u in res["uji"] if u["ats"] == "html")
+        self.assertEqual((trial["ok"], trial["indonesia"]), (True, 3))
+        self.assertTrue(lst["cuplikan"])
 
     def test_situs_gagal_tidak_menghentikan(self):
         self.use({"rusak.co.id": lambda u, b: HTTPError(u, 503, "down", {}, BytesIO())})
