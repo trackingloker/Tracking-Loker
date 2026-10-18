@@ -39,7 +39,7 @@ function todayMessage() {
 }
 
 function emptyArt(img, tone = '') {
-  return `<div class="empty-art ${tone}"><img src="${img}" alt=""></div>`;
+  return `<div class="empty-art ${tone}" aria-hidden="true"><img src="${img}" alt=""></div>`;
 }
 // Kunci lama dipertahankan supaya lowongan yang sudah disimpan pengguna tidak hilang.
 const SAVED_KEY = 'loker-radar:saved';
@@ -91,7 +91,7 @@ async function boot() {
   bindEvents();
   renderStatic();
   setView(viewFromHash(), false);
-  $('#job-list').innerHTML = Array.from({ length: 6 }, () => '<div class="skeleton"></div>').join('');
+  $('#job-list').innerHTML = Array.from({ length: 6 }, () => '<li class="skeleton" aria-hidden="true"></li>').join('');
   try {
     const [data, stats] = await Promise.all([getJSON('jobs.json'), getJSON('stats.json').catch(() => ({ days: [] }))]);
     const d = decode(data);
@@ -139,9 +139,20 @@ function renderMeta() {
     const age = nowSec() - state.ref;
     upd.textContent = `Diperbarui ${dateText(state.ref, true)}, ${timeText(state.ref)} WIB` + (age > 36 * 3600 ? ` · ${ago(state.ref, nowSec())}` : '');
   }
-  const parts = state.sources.map((s) => s.ok
+  // Situs karier perusahaan (bisa ratusan) diringkas jadi satu baris.
+  const isCompany = (s) => s.jenis === 'perusahaan' || /^Karier /.test(s.name);
+  const companies = state.sources.filter(isCompany);
+  const parts = state.sources.filter((s) => !isCompany(s)).map((s) => s.ok
     ? `${esc(s.name)}: ${ribu(s.count)} lowongan`
     : `${esc(s.name)}: gagal ditarik pada pembaruan terakhir, menampilkan data sebelumnya`);
+  if (companies.length) {
+    const ok = companies.filter((s) => s.ok);
+    const total = ok.reduce((n, s) => n + (s.count || 0), 0);
+    const hiring = ok.filter((s) => s.count > 0).length;
+    const failed = companies.length - ok.length;
+    parts.push(`Situs karier perusahaan: ${ribu(total)} lowongan dari ${ribu(hiring)} perusahaan`
+      + (failed ? ` (${ribu(failed)} situs gagal ditarik, menampilkan data sebelumnya)` : ''));
+  }
   $('#source-status').innerHTML = parts.join(' · ');
   updateSavedBadge();
 }
@@ -278,7 +289,7 @@ function renderControls() {
     const on = active && active.label === label;
     return `<button type="button" class="chip${on ? ' on' : ''}" data-jur="${esc(on ? '' : label)}">${esc(label)} <small>${ribu(n)}</small></button>`;
   });
-  $('#quick').innerHTML = `<span class="quick-label">Cari sesuai jurusan</span>${chips.join('')}`;
+  $('#quick').innerHTML = `<h2 class="quick-label" id="quick-label">Cari sesuai jurusan</h2>${chips.join('')}`;
   if (document.activeElement !== $('#jur')) $('#jur').value = f.jur;
 
   renderActiveChips();
@@ -299,8 +310,8 @@ function renderActiveChips() {
   if (f.waktu) add(`Diposting ${WAKTU_CHOICES.find((c) => c.key === f.waktu)?.label} terakhir`, { waktu: '' });
   if (f.src) add(f.src === DIRECT ? 'Situs perusahaan' : f.src, { src: '' });
   const box = $('#active-chips');
-  box.innerHTML = chips.map((c, i) => `<button type="button" class="chip" data-unset="${i}">${esc(c.label)} ${icon('x')}</button>`).join('')
-    + (chips.length > 1 ? '<button type="button" class="chip clear" data-reset>Hapus semua</button>' : '');
+  box.innerHTML = chips.map((c, i) => `<li><button type="button" class="chip" data-unset="${i}" aria-label="Hapus filter ${esc(c.label)}">${esc(c.label)} ${icon('x')}</button></li>`).join('')
+    + (chips.length > 1 ? '<li><button type="button" class="chip clear" data-reset>Hapus semua</button></li>' : '');
   box._patches = chips.map((c) => c.patch);
 }
 
@@ -342,12 +353,12 @@ function renderCheer() {
   }
   const fresh = summarize(state.all, state.ref).fresh;
   $('#cheer').innerHTML = `
-    <div class="cheer-art"><img src="foto-eksekutif.webp" alt=""></div>
-    <div>
-      <p class="cheer-eyebrow"><svg><use href="#i-heart"/></svg>Pesan hari ini untuk yang masih berjuang</p>
+    <div class="cheer-art" aria-hidden="true"><img src="foto-eksekutif.webp" alt=""></div>
+    <hgroup>
+      <p class="cheer-eyebrow"><svg aria-hidden="true"><use href="#i-heart"/></svg>Pesan hari ini untuk yang masih berjuang</p>
       <h2>${esc(m.title)}</h2>
       <p>${esc(m.body.replace('{fresh}', ribu(fresh)))}</p>
-    </div>
+    </hgroup>
     <button type="button" class="btn cta" data-mood='{"waktu":"1"}'>Lihat ${ribu(fresh)} lowongan baru <span class="cta-dot"><svg><use href="#i-play"/></svg></span></button>`;
 }
 
@@ -367,27 +378,28 @@ function cardHTML(job, closed = false, extra = '') {
   const pay = salaryText(job.smin, job.smax);
   const saved = state.saved.some((s) => s.id === job.id);
   const tags = [
-    closed ? '<span class="tag">Sudah ditutup</span>' : '',
-    isNew ? '<span class="tag new">Baru</span>' : '',
-    `<span class="tag">${icon('pin')}${esc(place(job))}</span>`,
-    job.type ? `<span class="tag">${esc(job.type)}</span>` : '',
-    job.edu ? `<span class="tag">Min. ${esc(EDU_SHORT[job.edu] || job.edu)}</span>` : ''
+    closed ? '<li class="tag">Sudah ditutup</li>' : '',
+    isNew ? '<li class="tag new">Baru</li>' : '',
+    `<li class="tag">${icon('pin')}<span class="sr-only">Lokasi: </span>${esc(place(job))}</li>`,
+    job.type ? `<li class="tag">${esc(job.type)}</li>` : '',
+    job.edu ? `<li class="tag">Min. ${esc(EDU_SHORT[job.edu] || job.edu)}</li>` : ''
   ].join('');
-  return `<div class="job" data-id="${esc(job.id)}">
-    <div class="job-top">
+  const posted = job.posted ? new Date(job.posted * 1000).toISOString() : '';
+  return `<li><article class="job" data-id="${esc(job.id)}">
+    <header class="job-top">
       ${logoHTML(job)}
-      <div class="job-head">
+      <hgroup class="job-head">
         <h3 class="job-title"><a href="?id=${encodeURIComponent(job.id)}" data-open="${esc(job.id)}" style="text-decoration:none">${esc(job.title)}</a></h3>
         <p class="job-co">${esc(job.company)}</p>
-      </div>
+      </hgroup>
       <button type="button" class="save${saved ? ' on' : ''}" data-save="${esc(job.id)}" aria-label="${saved ? 'Hapus dari simpanan' : 'Simpan lowongan'}" aria-pressed="${saved}">${icon('bookmark')}</button>
-    </div>
-    <div class="job-tags">${tags}</div>${extra}
-    <div class="job-foot">
+    </header>
+    <ul class="job-tags">${tags}</ul>${extra}
+    <footer class="job-foot">
       <span class="pay${pay ? '' : ' none'}">${pay || 'Gaji tidak dicantumkan'}</span>
-      <span class="when"><b>${esc(ago(job.posted, nowSec()))}</b>${esc(job.platform)}</span>
-    </div>
-  </div>`;
+      <span class="when"><b>${posted ? `<time datetime="${posted}">${esc(ago(job.posted, nowSec()))}</time>` : ''}</b>${esc(job.platform)}</span>
+    </footer>
+  </article></li>`;
 }
 
 function renderResults() {
@@ -401,12 +413,12 @@ function renderResults() {
     ? `dari ${ribu(state.all.length)} lowongan aktif · ${major ? `cocok untuk jurusan ${major.label}, dilihat dari bidang dan judul lowongan` : `bidang atau judulnya memuat "${state.f.jur}"`}`
     : n ? `dari ${ribu(state.all.length)} lowongan aktif` : 'Semua lowongan aktif, terbaru di atas';
   if (!state.all.length) {
-    listEl.innerHTML = `<div class="empty">${emptyArt('foto-kantor.webp', 'yellow')}<b>Data pertama sedang disiapkan</b><p>Lowongan dari Karirhub Kemnaker dan situs karier perusahaan ditarik otomatis setiap pagi pukul 06.00 WIB.</p></div>`;
+    listEl.innerHTML = `<li class="empty">${emptyArt('foto-kantor.webp', 'yellow')}<b>Data pertama sedang disiapkan</b><p>Lowongan dari Karirhub Kemnaker dan situs karier perusahaan ditarik otomatis setiap pagi pukul 06.00 WIB.</p></li>`;
     $('#more').hidden = true;
     return;
   }
   if (!list.length) {
-    listEl.innerHTML = `<div class="empty">${emptyArt('foto-magang.webp', 'green')}<b>Belum ketemu yang cocok</b><p>Coba kata kunci lain atau longgarkan filternya. Lowongan baru masuk setiap pagi, jadi besok bisa saja muncul.</p><button class="btn cta" type="button" data-reset>Hapus semua filter <span class="cta-dot"><svg><use href="#i-play"/></svg></span></button></div>`;
+    listEl.innerHTML = `<li class="empty">${emptyArt('foto-magang.webp', 'green')}<b>Belum ketemu yang cocok</b><p>Coba kata kunci lain atau longgarkan filternya. Lowongan baru masuk setiap pagi, jadi besok bisa saja muncul.</p><button class="btn cta" type="button" data-reset>Hapus semua filter <span class="cta-dot"><svg><use href="#i-play"/></svg></span></button></li>`;
     $('#more').hidden = true;
     return;
   }
@@ -451,7 +463,7 @@ function renderPasar() {
   const bento = $('#bento');
   if (!state.all.length) {
     $('#pasar-scope').textContent = '';
-    bento.innerHTML = `<div class="tile wide"><div class="empty" style="box-shadow:none;padding:24px">${emptyArt('foto-kantor.webp', 'yellow')}<b>Analisis muncul setelah data pertama masuk</b></div></div>`;
+    bento.innerHTML = `<section class="tile wide"><div class="empty" style="box-shadow:none;padding:24px">${emptyArt('foto-kantor.webp', 'yellow')}<b>Analisis muncul setelah data pertama masuk</b></div></section>`;
     return;
   }
   const s = summarize(list, state.ref);
@@ -475,14 +487,14 @@ function renderPasar() {
   const srcs = countBy(list, 'platform', 8).map(([v, n]) => [v, n, { ...base, src: v }]);
 
   bento.innerHTML = `
-    <div class="tile kpi navy"><span class="kpi-label">Lowongan aktif</span><span class="kpi-value">${ribu(s.total)}</span><span class="kpi-delta tile-sub">${scopeProv ? `${pct(s.total, state.all.length)} dari seluruh Indonesia` : deltaText}</span></div>
-    <div class="tile kpi yellow"><span class="kpi-label">Diposting 24 jam terakhir</span><span class="kpi-value">${ribu(s.fresh)}</span><span class="tile-sub">${pct(s.fresh, s.total)} dari lowongan aktif</span></div>
-    <div class="tile kpi green"><span class="kpi-label">Perusahaan merekrut</span><span class="kpi-value">${ribu(s.companies)}</span><span class="tile-sub">rata-rata ${(s.total / Math.max(1, s.companies)).toFixed(1).replace('.', ',')} lowongan per perusahaan</span></div>
-    <div class="tile kpi pink"><span class="kpi-label">Median gaji tercantum</span><span class="kpi-value">${s.medianPay ? `<small>Rp</small>${juta(s.medianPay).replace(' jt', '<small> jt</small>')}` : '–'}</span><span class="tile-sub">hanya ${s.salariedPct}% lowongan mencantumkan gaji</span></div>
+    <section class="tile kpi navy"><h2 class="kpi-label">Lowongan aktif</h2><p class="kpi-value"><data value="${s.total}">${ribu(s.total)}</data></p><p class="kpi-delta tile-sub">${scopeProv ? `${pct(s.total, state.all.length)} dari seluruh Indonesia` : deltaText}</p></section>
+    <section class="tile kpi yellow"><h2 class="kpi-label">Diposting 24 jam terakhir</h2><p class="kpi-value"><data value="${s.fresh}">${ribu(s.fresh)}</data></p><p class="tile-sub">${pct(s.fresh, s.total)} dari lowongan aktif</p></section>
+    <section class="tile kpi green"><h2 class="kpi-label">Perusahaan merekrut</h2><p class="kpi-value"><data value="${s.companies}">${ribu(s.companies)}</data></p><p class="tile-sub">rata-rata ${(s.total / Math.max(1, s.companies)).toFixed(1).replace('.', ',')} lowongan per perusahaan</p></section>
+    <section class="tile kpi pink"><h2 class="kpi-label">Median gaji tercantum</h2><p class="kpi-value">${s.medianPay ? `<data value="${s.medianPay}"><small>Rp</small>${juta(s.medianPay).replace(' jt', '<small> jt</small>')}</data>` : '–'}</p><p class="tile-sub">hanya ${s.salariedPct}% lowongan mencantumkan gaji</p></section>
 
-    <div class="tile wide trend">
-      <div class="tile-head trend-head">
-        <div><span class="tile-title">Lowongan dari hari ke hari</span><p class="trend-sum" id="trend-sum"></p></div>
+    <section class="tile wide trend">
+      <header class="tile-head trend-head">
+        <hgroup><h2 class="tile-title">Lowongan dari hari ke hari</h2><p class="trend-sum" id="trend-sum"></p></hgroup>
         <div class="trend-ctrl">
         <div class="seg" id="trend-range" role="group" aria-label="Rentang waktu" hidden>
           <button type="button" class="on" data-trend-range="30" aria-pressed="true">30 hari</button>
@@ -493,26 +505,26 @@ function renderPasar() {
           <button type="button" data-trend-view="table" aria-pressed="false">Tabel</button>
         </div>
         </div>
-      </div>
+      </header>
       <div id="trend"></div>
-    </div>
+    </section>
 
-    <div class="tile" data-tone="blue"><div class="tile-head"><span class="tile-title">${scopeProv ? 'Kota/kabupaten terbanyak' : 'Provinsi terbanyak'}</span><span class="tile-sub">jumlah lowongan</span></div>${barsHTML(where)}</div>
-    <div class="tile" data-tone="green"><div class="tile-head"><span class="tile-title">Bidang paling dicari</span><span class="tile-sub">jumlah lowongan</span></div>${barsHTML(fns)}</div>
-    <div class="tile"><div class="tile-head"><span class="tile-title">Paling aktif merekrut</span><span class="tile-sub">lowongan terbuka</span></div>
-      <div class="co-list">${cos.map(([name, n]) => {
+    <section class="tile" data-tone="blue"><header class="tile-head"><h2 class="tile-title">${scopeProv ? 'Kota/kabupaten terbanyak' : 'Provinsi terbanyak'}</h2><p class="tile-sub">jumlah lowongan</p></header>${barsHTML(where)}</section>
+    <section class="tile" data-tone="green"><header class="tile-head"><h2 class="tile-title">Bidang paling dicari</h2><p class="tile-sub">jumlah lowongan</p></header>${barsHTML(fns)}</section>
+    <section class="tile"><header class="tile-head"><h2 class="tile-title">Paling aktif merekrut</h2><p class="tile-sub">lowongan terbuka</p></header>
+      <ol class="co-list">${cos.map(([name, n]) => {
         const job = list.find((j) => j.company === name);
-        return `<button type="button" class="co-row" data-patch='${esc(JSON.stringify({ ...base, q: name }))}'>${logoHTML(job)}<span>${esc(name)}</span><b>${ribu(n)}</b></button>`;
-      }).join('')}</div></div>
-    <div class="tile" data-tone="pink"><div class="tile-head"><span class="tile-title">Median gaji per bidang</span><span class="tile-sub">dari lowongan yang mencantumkan gaji</span></div>
-      ${pay.length ? barsHTML(pay.map((p) => [p.name, p.median, { ...base, fn: p.name, gaji: 'ada' }, `Rp${juta(p.median)}`, `${ribu(p.n)} data`])) : '<p class="note">Belum cukup lowongan bergaji untuk dihitung.</p>'}</div>
+        return `<li><button type="button" class="co-row" data-patch='${esc(JSON.stringify({ ...base, q: name }))}'>${logoHTML(job)}<span>${esc(name)}</span><b>${ribu(n)}</b></button></li>`;
+      }).join('')}</ol></section>
+    <section class="tile" data-tone="pink"><header class="tile-head"><h2 class="tile-title">Median gaji per bidang</h2><p class="tile-sub">dari lowongan yang mencantumkan gaji</p></header>
+      ${pay.length ? barsHTML(pay.map((p) => [p.name, p.median, { ...base, fn: p.name, gaji: 'ada' }, `Rp${juta(p.median)}`, `${ribu(p.n)} data`])) : '<p class="note">Belum cukup lowongan bergaji untuk dihitung.</p>'}</section>
 
-    <div class="tile"><div class="tile-head"><span class="tile-title">Siapa yang dicari</span><span class="tile-sub">porsi dari lowongan aktif</span></div>
+    <section class="tile"><header class="tile-head"><h2 class="tile-title">Siapa yang dicari</h2><p class="tile-sub">porsi dari lowongan aktif</p></header>
       <div class="mix">
-        <div class="mix-block"><h4>Syarat pendidikan minimal</h4>${stackHTML(edu, list.length, 'edu')}</div>
-        <div class="mix-block"><h4>Tipe pekerjaan</h4>${stackHTML(types, list.length, 'type')}</div>
-      </div></div>
-    <div class="tile" data-tone="orange"><div class="tile-head"><span class="tile-title">Sumber lowongan</span><span class="tile-sub">platform asal di Karirhub</span></div>${barsHTML(srcs)}</div>
+        <section class="mix-block"><h3>Syarat pendidikan minimal</h3>${stackHTML(edu, list.length, 'edu')}</section>
+        <section class="mix-block"><h3>Tipe pekerjaan</h3>${stackHTML(types, list.length, 'type')}</section>
+      </div></section>
+    <section class="tile" data-tone="orange"><header class="tile-head"><h2 class="tile-title">Sumber lowongan</h2><p class="tile-sub">platform asal lowongan</p></header>${barsHTML(srcs)}</section>
   `;
   bento._edu = edu;
   renderTrend();
@@ -532,11 +544,11 @@ const pct = (a, b) => `${b ? Math.round((a / b) * 100) : 0}%`;
 function barsHTML(rows) {
   if (!rows.length) return '<p class="note">Belum ada data.</p>';
   const max = Math.max(...rows.map((r) => r[1]));
-  return `<div class="bars">${rows.map(([name, n, patch, label, title]) => `
-    <button type="button" class="bar${patch ? '' : ' static'}" ${patch ? `data-patch='${esc(JSON.stringify(patch))}'` : ''} ${title ? `title="${esc(title)}"` : ''}>
+  return `<ol class="bars">${rows.map(([name, n, patch, label, title]) => `
+    <li><button type="button" class="bar${patch ? '' : ' static'}" ${patch ? `data-patch='${esc(JSON.stringify(patch))}'` : ''} ${title ? `title="${esc(title)}"` : ''}>
       <span class="bar-name">${esc(name)}</span><span class="bar-val">${label || ribu(n)}</span>
-      <span class="bar-track"><span class="bar-fill" style="width:${Math.max(2, (n / max) * 100).toFixed(1)}%"></span></span>
-    </button>`).join('')}</div>`;
+      <span class="bar-track" aria-hidden="true"><span class="bar-fill" style="width:${Math.max(2, (n / max) * 100).toFixed(1)}%"></span></span>
+    </button></li>`).join('')}</ol>`;
 }
 
 const STACK_COLORS = ['#1E2257', '#FFC83D', '#2E9E62', '#F27BA0', '#5B8DEF', '#F28C4E', '#E8DCCD'];
@@ -544,8 +556,8 @@ const STACK_COLORS = ['#1E2257', '#FFC83D', '#2E9E62', '#F27BA0', '#5B8DEF', '#F
 function stackHTML(rows, total, kind) {
   if (!rows.length) return '<p class="note">Belum ada data.</p>';
   const segs = rows.map(([name, n], i) => ({ name, n, color: STACK_COLORS[i % STACK_COLORS.length] }));
-  return `<div class="stack">${segs.map((s) => `<span style="flex:${s.n};background:${s.color}" title="${esc(s.name)}: ${ribu(s.n)}"></span>`).join('')}</div>
-    <div class="legend">${segs.map((s) => `<button type="button" data-stack="${kind}" data-value="${esc(s.name)}"><i style="background:${s.color}"></i>${esc(s.name)} <b>${pct(s.n, total)}</b></button>`).join('')}</div>`;
+  return `<div class="stack" aria-hidden="true">${segs.map((s) => `<span style="flex:${s.n};background:${s.color}" title="${esc(s.name)}: ${ribu(s.n)}"></span>`).join('')}</div>
+    <ul class="legend">${segs.map((s) => `<li><button type="button" data-stack="${kind}" data-value="${esc(s.name)}"><i style="background:${s.color}"></i>${esc(s.name)} <b>${pct(s.n, total)}</b></button></li>`).join('')}</ul>`;
 }
 
 const BULAN_PENDEK = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -814,7 +826,7 @@ function updateSavedBadge() {
 function renderSaved() {
   const box = $('#saved-list');
   if (!state.saved.length) {
-    box.innerHTML = `<div class="empty">${emptyArt('foto-perawat.webp', 'yellow')}<b>Belum ada lowongan incaran</b><p>Ketuk ikon penanda di kartu lowongan untuk menyimpannya di sini, supaya tidak lupa dilamar. Simpanan hanya ada di perangkat ini.</p><a class="btn cta" href="#cari">Cari lowongan <span class="cta-dot"><svg><use href="#i-play"/></svg></span></a></div>`;
+    box.innerHTML = `<li class="empty">${emptyArt('foto-perawat.webp', 'yellow')}<b>Belum ada lowongan incaran</b><p>Ketuk ikon penanda di kartu lowongan untuk menyimpannya di sini, supaya tidak lupa dilamar. Simpanan hanya ada di perangkat ini.</p><a class="btn cta" href="#cari">Cari lowongan <span class="cta-dot"><svg><use href="#i-play"/></svg></span></a></li>`;
     return;
   }
   box.innerHTML = state.saved.map((s) => {
@@ -849,28 +861,28 @@ function openJob(id) {
   ].filter(([, v]) => v);
 
   $('#drawer-inner').innerHTML = `
-    <div class="d-bar">
-      <button class="round" type="button" data-close aria-label="Tutup">${icon('x')}</button>
-      <div class="d-bar-actions">
+    <menu class="d-bar" aria-label="Aksi lowongan">
+      <li><button class="round" type="button" data-close aria-label="Tutup">${icon('x')}</button></li>
+      <li class="d-bar-actions">
         <button class="round" type="button" data-share aria-label="Bagikan">${icon('share')}</button>
         <button class="round${saved ? ' on' : ''}" type="button" data-save="${esc(id)}" aria-label="Simpan" aria-pressed="${saved}">${icon('bookmark')}</button>
-      </div>
-    </div>
-    <div class="d-head">
+      </li>
+    </menu>
+    <header class="d-head">
       ${logoHTML(job)}
-      <div><h2 class="d-title" id="d-title">${esc(job.title)}</h2><p class="d-co">${esc(job.company)}</p></div>
-    </div>
-    ${closed ? '<div class="warn-box">Lowongan ini sudah tidak muncul di sumbernya, kemungkinan sudah ditutup.</div>' : ''}
-    <div class="d-pay${pay ? '' : ' none'}"><b>${pay || 'Gaji tidak dicantumkan'}</b>${pay ? '<span>per bulan</span>' : ''}</div>
-    <div class="facts">${facts.map(([k, v]) => `<div class="fact"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div>
-    ${state.cv ? '<div class="cv-compare" id="d-cv"></div>' : ''}
-    <div class="d-section" id="d-detail">${job.via === 'karirhub' ? '<div class="d-load"></div>' : `<p class="d-text">Deskripsi lengkap dan formulir lamaran ada di situs karier ${esc(job.company)}.</p>`}</div>
-    ${closed ? '' : `<div class="cheer-note">${icon('heart')}<span>Semoga lolos! Baca lagi kualifikasinya dan sesuaikan CV-mu sebelum melamar.</span></div>`}
-    <div class="warn-box">Lowongan resmi tidak memungut biaya apa pun. Waspadai permintaan transfer uang, biaya pelatihan, atau seragam.</div>
-    <div class="d-actions">
+      <hgroup><h2 class="d-title" id="d-title">${esc(job.title)}</h2><p class="d-co">${esc(job.company)}</p></hgroup>
+    </header>
+    ${closed ? '<p class="warn-box" role="note">Lowongan ini sudah tidak muncul di sumbernya, kemungkinan sudah ditutup.</p>' : ''}
+    <p class="d-pay${pay ? '' : ' none'}"><b>${pay || 'Gaji tidak dicantumkan'}</b>${pay ? '<span>per bulan</span>' : ''}</p>
+    <dl class="facts">${facts.map(([k, v]) => `<div class="fact"><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
+    ${state.cv ? '<section class="cv-compare" id="d-cv" aria-label="Dibanding CV-mu"></section>' : ''}
+    <section class="d-section" id="d-detail" aria-label="Deskripsi lowongan">${job.via === 'karirhub' ? '<div class="d-load" aria-hidden="true"></div>' : `<p class="d-text">Deskripsi lengkap dan formulir lamaran ada di situs karier ${esc(job.company)}.</p>`}</section>
+    ${closed ? '' : `<p class="cheer-note">${icon('heart')}<span>Semoga lolos! Baca lagi kualifikasinya dan sesuaikan CV-mu sebelum melamar.</span></p>`}
+    <p class="warn-box" role="note">Lowongan resmi tidak memungut biaya apa pun. Waspadai permintaan transfer uang, biaya pelatihan, atau seragam.</p>
+    <footer class="d-actions">
       <a class="btn cta" id="apply-link" href="${esc(kh || '#')}" target="_blank" rel="noopener">Lamar di ${esc(job.via === 'karirhub' ? 'Karirhub' : job.platform)} <span class="cta-dot">${icon('arrow')}</span></a>
       <a class="btn outline" id="kh-link" href="${esc(kh)}" target="_blank" rel="noopener" hidden>Lihat di Karirhub</a>
-    </div>`;
+    </footer>`;
   $('#drawer').hidden = false;
   $('#scrim').hidden = false;
   document.body.classList.add('lock');
@@ -924,8 +936,8 @@ async function loadDetail(job) {
     box.innerHTML = [
       desc && `<h3>Deskripsi pekerjaan</h3><p class="d-text clamp" id="d-desc">${esc(desc)}</p>`,
       qual && `<h3 style="margin-top:8px">Kualifikasi</h3><p class="d-text">${esc(qual)}</p>`,
-      req.length && `<h3 style="margin-top:8px">Syarat lain</h3><p class="d-text">${req.map(esc).join('\n')}</p>`,
-      addr && `<h3 style="margin-top:8px">Alamat</h3><p class="d-text">${esc(addr)}</p>`
+      req.length && `<h3 style="margin-top:8px">Syarat lain</h3><ul class="d-text d-list">${req.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>`,
+      addr && `<h3 style="margin-top:8px">Alamat</h3><address class="d-text">${esc(addr)}</address>`
     ].filter(Boolean).join('') || '<p class="d-text">Perusahaan tidak menulis deskripsi tambahan.</p>';
     const descEl = $('#d-desc');
     if (descEl && descEl.scrollHeight > 280) {
@@ -1127,33 +1139,33 @@ function renderCV() {
         <b>Pilih atau taruh file CV di sini</b>
         <p>PDF atau Word (.docx), maksimal 10 MB.</p>
         <span class="btn cta">Pilih file CV <span class="cta-dot">${icon('upload')}</span></span>
-        ${state.cvError ? `<div class="warn-box">${icon('alert')}<span>${esc(state.cvError)}</span></div>` : ''}
+        ${state.cvError ? `<p class="warn-box" role="alert">${icon('alert')}<span>${esc(state.cvError)}</span></p>` : ''}
         <p class="cv-privacy">${icon('lock')}<span>CV-mu dibaca langsung di perangkat ini dan tidak dikirim ke mana pun. Yang disimpan hanya ringkasannya (jenjang, jurusan, domisili, lama pengalaman, dan kata kunci keahlian) supaya rekomendasi tetap ada saat kamu kembali. Bisa dihapus kapan saja.</span></p>
       </div>
-      <div class="cv-steps">
-        <div><i>1</i><b>Upload CV</b><span>CV ramah ATS dari Word atau Google Docs paling mudah dibaca.</span></div>
-        <div><i>2</i><b>Cek hasil bacaan</b><span>Jurusan, jenjang, domisili, dan kekuatanmu bisa dikoreksi.</span></div>
-        <div><i>3</i><b>Lihat yang cocok</b><span>Lowongan dikelompokkan per arah karier, lengkap dengan alasannya.</span></div>
-      </div>`;
+      <ol class="cv-steps" aria-label="Cara kerjanya">
+        <li><i aria-hidden="true">1</i><b>Upload CV</b><span>CV ramah ATS dari Word atau Google Docs paling mudah dibaca.</span></li>
+        <li><i aria-hidden="true">2</i><b>Cek hasil bacaan</b><span>Jurusan, jenjang, domisili, dan kekuatanmu bisa dikoreksi.</span></li>
+        <li><i aria-hidden="true">3</i><b>Lihat yang cocok</b><span>Lowongan dikelompokkan per arah karier, lengkap dengan alasannya.</span></li>
+      </ol>`;
     return;
   }
   const p = state.cv;
   root.innerHTML = `
-    <div class="cv-bar">
-      <span class="cv-bar-icon">${icon('doc')}</span>
-      <div class="cv-bar-text"><b>${p.readable ? `CV dibaca ${dateText(p.at, true)}` : 'CV-mu belum bisa dibaca sebagai teks'}</b><span>${esc(p.kind || 'CV')} · ringkasannya tersimpan di perangkat ini saja</span></div>
+    <header class="cv-bar">
+      <span class="cv-bar-icon" aria-hidden="true">${icon('doc')}</span>
+      <p class="cv-bar-text"><b>${p.readable ? `CV dibaca <time datetime="${new Date(p.at * 1000).toISOString().slice(0, 10)}">${dateText(p.at, true)}</time>` : 'CV-mu belum bisa dibaca sebagai teks'}</b><span>${esc(p.kind || 'CV')} · ringkasannya tersimpan di perangkat ini saja</span></p>
       <div class="cv-bar-actions">
         <button class="btn outline sm" type="button" data-cv-pick>${icon('upload')}Ganti CV</button>
         <button class="btn outline sm" type="button" data-cv-clear>${icon('trash')}Hapus</button>
       </div>
-    </div>
-    ${state.cvError ? `<div class="warn-box">${icon('alert')}<span>${esc(state.cvError)}</span></div>` : ''}
-    ${p.readable ? '' : `<div class="warn-box">${icon('alert')}<span>Kemungkinan CV-mu berupa gambar atau hasil scan, jadi isinya tidak terbaca. Kamu tetap bisa mengisi jenjang, jurusan, domisili, dan bidang yang kamu minati secara manual di bawah ini untuk mendapat rekomendasi.</span></div>`}
+    </header>
+    ${state.cvError ? `<p class="warn-box" role="alert">${icon('alert')}<span>${esc(state.cvError)}</span></p>` : ''}
+    ${p.readable ? '' : `<p class="warn-box" role="note">${icon('alert')}<span>Kemungkinan CV-mu berupa gambar atau hasil scan, jadi isinya tidak terbaca. Kamu tetap bisa mengisi jenjang, jurusan, domisili, dan bidang yang kamu minati secara manual di bawah ini untuk mendapat rekomendasi.</span></p>`}
     <div class="cv-grid">
       ${profileHTML(p)}
-      <div class="cv-side">${atsHTML(p)}<div id="cv-tips">${tipsHTML(p)}</div></div>
+      <aside class="cv-side" aria-label="Saran untuk CV-mu">${atsHTML(p)}<div id="cv-tips">${tipsHTML(p)}</div></aside>
     </div>
-    <div id="cv-recs"></div>`;
+    <section id="cv-recs" aria-labelledby="cv-recs-title"></section>`;
   renderRecs();
 }
 
@@ -1166,9 +1178,9 @@ function profileHTML(p) {
     : p.months < 12 ? `Terbaca ${p.months} bulan dari CV.` : `Terbaca sekitar ${String(Math.round(p.months / 12 * 10) / 10).replace('.', ',')} tahun dari CV.`;
   const intern = p.internMonths ? ` Magang/PKL ${p.internMonths} bulan.` : '';
   const used = new Set((p.signals || []).map((s) => s.id));
-  return `<div class="tile cv-card">
-    <div class="tile-head"><span class="tile-title">Yang terbaca dari CV-mu</span><span class="tile-sub">Ada yang kurang pas? Ubah di sini.</span></div>
-    <div class="cv-fields">
+  return `<section class="tile cv-card" aria-labelledby="cv-read-title">
+    <header class="tile-head"><h2 class="tile-title" id="cv-read-title">Yang terbaca dari CV-mu</h2><p class="tile-sub">Ada yang kurang pas? Ubah di sini.</p></header>
+    <form class="cv-fields" id="cv-form" aria-labelledby="cv-read-title">
       <div class="cv-field"><label for="cv-level">Pendidikan terakhir</label>
         <div class="select"><select id="cv-level"><option value="">Belum terbaca</option>${Object.keys(LEVEL_OF).map((k) => `<option value="${k}"${k === lab ? ' selected' : ''}>${LEVEL_TEXT[k]}</option>`).join('')}</select>${icon('chev')}</div>
         ${LEVEL_OF[lab] >= 40 ? `<span class="cv-check"><input type="checkbox" id="cv-study"${p.studying ? ' checked' : ''}><label for="cv-study">Masih kuliah / belum lulus</label></span>` : ''}
@@ -1185,13 +1197,13 @@ function profileHTML(p) {
         <div class="select"><select id="cv-exp">${Object.keys(SENIORITY_LABEL).map((k) => `<option value="${k}"${k === sen ? ' selected' : ''}>${SENIORITY_LABEL[k]}</option>`).join('')}</select>${icon('chev')}</div>
         <small>${esc(readMonths + intern)}</small>
       </div>
-    </div>
-    <div class="cv-sigs-wrap">
-      <span class="flabel">Kekuatanmu</span>
-      <div class="cv-sigs" id="cv-sigs">${sigsHTML(p)}</div>
+    </form>
+    <section class="cv-sigs-wrap" aria-labelledby="cv-sigs-title">
+      <h3 class="flabel" id="cv-sigs-title">Kekuatanmu</h3>
+      <ul class="cv-sigs" id="cv-sigs">${sigsHTML(p)}</ul>
       <div class="select sm"><select id="cv-add" aria-label="Tambah bidang yang kamu minati"><option value="">＋ Tambah bidang yang kamu minati</option>${CLUSTERS.filter((c) => !used.has(c.id)).map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('')}</select>${icon('chev')}</div>
-    </div>
-  </div>`;
+    </section>
+  </section>`;
 }
 
 function majorNote(p) {
@@ -1202,13 +1214,13 @@ function majorNote(p) {
 
 function sigsHTML(p) {
   const list = (p.signals || []).filter((s) => isStrong(s) || s.off);
-  if (!list.length) return '<p class="note">Belum ada bidang yang terbaca kuat. Tambahkan bidang yang kamu minati di bawah ini.</p>';
+  if (!list.length) return '<li class="note">Belum ada bidang yang terbaca kuat. Tambahkan bidang yang kamu minati di bawah ini.</li>';
   return list.map((s) => {
     const c = CLUSTER_BY_ID.get(s.id);
     const src = sourcesOf(s).filter((k) => !['ringkasan', 'umum', 'pendidikan'].includes(k) || sourcesOf(s).length === 1);
     const from = src.map((k) => (k === 'jurusan' ? 'jurusan' : SOURCE_LONG[k])).join(', ');
-    return `<button type="button" class="sig${s.off ? ' off' : ''}" data-cv-sig="${s.id}" aria-pressed="${!s.off}" title="${s.off ? 'Pakai lagi' : 'Jangan pakai bidang ini'}">
-      <span><b>${esc(c ? c.label : s.id)}</b><small>${esc(from ? `dari ${from}` : '')}</small></span>${icon(s.off ? 'plus' : 'x')}</button>`;
+    return `<li><button type="button" class="sig${s.off ? ' off' : ''}" data-cv-sig="${s.id}" aria-pressed="${!s.off}" title="${s.off ? 'Pakai lagi' : 'Jangan pakai bidang ini'}">
+      <span><b>${esc(c ? c.label : s.id)}</b><small>${esc(from ? `dari ${from}` : '')}</small></span>${icon(s.off ? 'plus' : 'x')}</button></li>`;
   }).join('');
 }
 
@@ -1216,22 +1228,22 @@ function atsHTML(p) {
   const r = atsReport(p);
   const items = r.items.slice().sort((a, b) => a.ok - b.ok);
   const tone = r.ok === r.total ? 'green' : r.ok >= r.total - 2 ? 'yellow' : 'pink';
-  return `<div class="tile cv-card">
-    <div class="tile-head"><span class="tile-title">Cek ramah ATS</span><span class="score-pill ${tone}">${r.ok}/${r.total}</span></div>
+  return `<section class="tile cv-card" aria-labelledby="ats-title">
+    <header class="tile-head"><h2 class="tile-title" id="ats-title">Cek ramah ATS</h2><p class="score-pill ${tone}"><data value="${r.ok}">${r.ok}/${r.total}</data></p></header>
     <p class="tile-sub">ATS (Applicant Tracking System) adalah sistem yang dipakai banyak perusahaan untuk menyaring CV secara otomatis.</p>
-    <ul class="ats-list">${items.map((i) => `<li class="${i.ok ? 'ok' : 'no'}">${icon(i.ok ? 'check' : 'alert')}<div><b>${esc(i.label)}</b>${!i.ok && i.tip ? `<span>${esc(i.tip)}</span>` : ''}</div></li>`).join('')}</ul>
-  </div>`;
+    <ul class="ats-list">${items.map((i) => `<li class="${i.ok ? 'ok' : 'no'}">${icon(i.ok ? 'check' : 'alert')}<p><b>${esc(i.label)}</b>${!i.ok && i.tip ? `<span>${esc(i.tip)}</span>` : ''}</p></li>`).join('')}</ul>
+  </section>`;
 }
 
 function tipsHTML(p) {
   if (!p.readable) return '';
   const tips = keywordTips(p);
-  return `<div class="tile cv-card">
-    <div class="tile-head"><span class="tile-title">Kata kunci yang bisa ditambahkan</span></div>
+  return `<section class="tile cv-card" aria-labelledby="tips-title">
+    <header class="tile-head"><h2 class="tile-title" id="tips-title">Kata kunci yang bisa ditambahkan</h2></header>
     ${tips.length ? `<p class="tile-sub">Kata yang umum dicari di bidangmu tapi belum terlihat di CV. Tambahkan hanya yang memang kamu kuasai, dengan istilah yang sama.</p>
-      ${tips.map((t) => `<div class="tip-row"><b>${esc(t.label)}</b><div class="chips">${t.missing.map((m) => `<span class="tag">${esc(m)}</span>`).join('')}</div></div>`).join('')}`
+      <dl class="tips">${tips.map((t) => `<div class="tip-row"><dt>${esc(t.label)}</dt><dd><ul class="chips">${t.missing.map((m) => `<li class="tag">${esc(m)}</li>`).join('')}</ul></dd></div>`).join('')}</dl>`
       : '<p class="tile-sub">CV-mu sudah memuat kata kunci umum di bidang-bidang terkuatmu.</p>'}
-  </div>`;
+  </section>`;
 }
 
 function whyHTML(parts, ready) {
@@ -1245,7 +1257,7 @@ function renderRecs() {
   if (!box) return;
   const p = state.cv;
   if (!state.loaded) {
-    box.innerHTML = `<div class="job-list">${Array.from({ length: 3 }, () => '<div class="skeleton"></div>').join('')}</div>`;
+    box.innerHTML = `<ul class="job-list">${Array.from({ length: 3 }, () => '<li class="skeleton" aria-hidden="true"></li>').join('')}</ul>`;
     return;
   }
   const near = state.cvNear;
@@ -1260,11 +1272,11 @@ function renderRecs() {
       <option value="near"${near === 'near' ? ' selected' : ''}>Utamakan dekat domisili</option>
       <option value="prov"${near === 'prov' ? ' selected' : ''}>Hanya di ${esc(p.prov)}</option>
       <option value="all"${near === 'all' ? ' selected' : ''}>Seluruh Indonesia</option></select>${icon('chev')}</div>` : '';
-  const head = `<div class="cv-recs-head">
-      <div><h2 class="title">${ribu(rec.count)} lowongan cocok dengan CV-mu</h2>
-      <p class="note">${esc(bits.length ? `Disesuaikan: ${bits.join(', ')}.` : '')} Lowongan dengan syarat pendidikan di atas jenjangmu tidak ditampilkan.</p></div>
+  const head = `<header class="cv-recs-head">
+      <hgroup><h2 class="title" id="cv-recs-title">${ribu(rec.count)} lowongan cocok dengan CV-mu</h2>
+      <p class="note">${esc(bits.length ? `Disesuaikan: ${bits.join(', ')}.` : '')} Lowongan dengan syarat pendidikan di atas jenjangmu tidak ditampilkan.</p></hgroup>
       ${nearSel}
-    </div>`;
+    </header>`;
   if (!rec.groups.length) {
     box.innerHTML = `${head}<div class="empty">${emptyArt('foto-kantor.webp', 'yellow')}<b>Belum ketemu yang cocok</b><p>Isi jurusanmu atau tambahkan bidang yang kamu minati di kotak "Yang terbaca dari CV-mu", supaya Tracking Loker punya arah untuk dicarikan.</p></div>`;
     return;
@@ -1278,9 +1290,9 @@ function renderRecs() {
       : g.key === 'jurusan' ? 'Sesuai bidang jurusanmu, walaupun pengalamanmu ada di bidang lain.'
         : from ? `Dari ${from}.` : '';
     const rest = g.items.length - shown;
-    return `<section class="cv-group${g.key === 'top' ? ' best' : ''}">
-      <div class="cv-group-head"><div><h3>${esc(g.title)}</h3><p>${esc(sub)}</p></div><span class="count">${ribu(g.total)} lowongan</span></div>
-      <div class="job-list">${g.items.slice(0, shown).map((it) => cardHTML(it.job, false, whyHTML(it.parts, it.why))).join('')}</div>
+    return `<section class="cv-group${g.key === 'top' ? ' best' : ''}" aria-labelledby="g-${esc(g.key)}">
+      <header class="cv-group-head"><hgroup><h3 id="g-${esc(g.key)}">${esc(g.title)}</h3><p>${esc(sub)}</p></hgroup><p class="count">${ribu(g.total)} lowongan</p></header>
+      <ul class="job-list" role="list">${g.items.slice(0, shown).map((it) => cardHTML(it.job, false, whyHTML(it.parts, it.why))).join('')}</ul>
       ${rest > 0 ? `<div class="more-row"><button class="btn outline sm" type="button" data-cv-more="${esc(g.key)}">Tampilkan ${Math.min(CV_STEP, rest)} lagi</button></div>` : ''}
     </section>`;
   }).join('');
@@ -1319,6 +1331,8 @@ function bindCV() {
     e.preventDefault();
     handleCVFile(e.dataTransfer.files && e.dataTransfer.files[0]);
   });
+  // Isian profil CV dibungkus <form>; Enter tidak boleh memuat ulang halaman.
+  root.addEventListener('submit', (e) => e.preventDefault());
   root.addEventListener('keydown', (e) => {
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.cv-drop[data-cv-pick]')) {
       e.preventDefault();
@@ -1399,11 +1413,11 @@ function renderCompare(job, detail) {
   const box = $('#d-cv');
   if (!box || !state.cv) return;
   const c = compareJob(state.cv, job, detail || {});
-  const row = (r) => `<li class="${r.ok === true ? 'ok' : r.ok === false ? 'no' : 'maybe'}">${icon(r.ok === true ? 'check' : 'alert')}<div><b>${esc(r.label)}</b><span>${esc(r.text)}</span></div></li>`;
+  const row = (r) => `<li class="${r.ok === true ? 'ok' : r.ok === false ? 'no' : 'maybe'}">${icon(r.ok === true ? 'check' : 'alert')}<p><b>${esc(r.label)}</b><span>${esc(r.text)}</span></p></li>`;
   box.innerHTML = `<h3>${icon('doc')}Dibanding CV-mu</h3>
     ${c.rows.length ? `<ul class="ats-list">${c.rows.map(row).join('')}</ul>` : ''}
-    ${c.have.length ? `<div class="cmp-terms"><span>Diminta lowongan dan sudah ada di CV-mu</span><div class="chips">${c.have.map((t) => `<span class="tag ok">${esc(prettyTerm(t))}</span>`).join('')}</div></div>` : ''}
-    ${c.missing.length ? `<div class="cmp-terms"><span>Diminta lowongan, belum terlihat di CV-mu</span><div class="chips">${c.missing.map((t) => `<span class="tag no">${esc(prettyTerm(t))}</span>`).join('')}</div></div>
+    ${c.have.length ? `<div class="cmp-terms"><span>Diminta lowongan dan sudah ada di CV-mu</span><ul class="chips">${c.have.map((t) => `<li class="tag ok">${esc(prettyTerm(t))}</li>`).join('')}</ul></div>` : ''}
+    ${c.missing.length ? `<div class="cmp-terms"><span>Diminta lowongan, belum terlihat di CV-mu</span><ul class="chips">${c.missing.map((t) => `<li class="tag no">${esc(prettyTerm(t))}</li>`).join('')}</ul></div>
       <p class="note">Kalau kamu memang menguasainya, tulis dengan istilah yang sama di CV supaya terbaca sistem ATS.</p>` : ''}
     ${detail === null ? '<p class="note">Mencocokkan dengan kualifikasi lowongan…</p>' : ''}`;
 }
@@ -1477,6 +1491,7 @@ function bindEvents() {
     typingJur = setTimeout(() => setFilters({ jur: v }, searchPinned()), picked ? 0 : 350);
   });
   $('#open-filters').addEventListener('click', () => openFilters(true));
+  $('#filter-form').addEventListener('submit', (e) => e.preventDefault());
   window.addEventListener('hashchange', () => {
     const v = viewFromHash();
     if (v !== state.view) setView(v);

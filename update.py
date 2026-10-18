@@ -3,12 +3,17 @@
 
 Sumber
   1. Karirhub Kemnaker, lewat API publik yang juga dipakai situs karirhub.kemnaker.go.id.
-  2. Situs karier perusahaan (Greenhouse, Lever, Ashby) yang terdaftar di perusahaan.json.
+  2. Situs karier perusahaan yang terdaftar di perusahaan.json: emiten besar BEI dan anak usahanya,
+     lewat Greenhouse, Lever, Ashby (di sini) serta Workday, SmartRecruiters, Workable, SuccessFactors,
+     Oracle, Radancy, dan data JobPosting di halaman lowongan (karier.py).
 
 Hasil (ditulis di folder yang sama dengan skrip ini)
   jobs.json   lowongan aktif dalam format ringkas, dibaca situs saat dibuka
   links.json  tautan lamaran asli per lowongan, dibaca saat detail dibuka
   stats.json  riwayat harian: total aktif, baru, ditutup
+
+Mode cek (python3 update.py --cek) memeriksa situs karier semua perusahaan di perusahaan.json dan
+menulis cek-karier.json, tanpa mengubah data lowongan.
 
 Hanya memakai pustaka standar Python, jadi tidak perlu pip install di GitHub Actions.
 """
@@ -26,6 +31,8 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
+
+import karier
 
 API = "https://api.kemnaker.go.id/karirhub"
 LISTING = f"{API}/vacancy/v2/published-industrial-vacancies"
@@ -45,6 +52,9 @@ MAX_PAGES = 4000
 # penarikan tetap selesai jauh sebelum batas waktu GitHub Actions.
 DETAIL_CAP = 600
 DETAIL_BUDGET_SEC = 30 * 60
+# Batas waktu untuk semua situs karier perusahaan, supaya penarikan harian tetap di bawah batas GitHub Actions.
+COMPANY_BUDGET_SEC = 12 * 60
+BOARDS = {"greenhouse", "lever", "ashby"}
 # Gaji di bawah ini hampir pasti upah harian/per paket, bukan gaji bulanan.
 MIN_MONTHLY = 500_000
 TYPE_NAMES = {
@@ -487,11 +497,69 @@ def fetch_board(company: dict, provinces: dict):
     return jobs, len(raw)
 
 
-def load_companies(path: Path) -> list[dict]:
+def read_companies(path: Path) -> list[dict]:
+    """Semua perusahaan di perusahaan.json (termasuk yang belum punya adapter)."""
     if not path.exists():
         return []
     data = json.loads(path.read_text("utf-8"))
-    return [c for c in data if isinstance(c, dict) and c.get("ats") and c.get("slug")]
+    rows = data.get("perusahaan", []) if isinstance(data, dict) else data
+    return [c for c in rows if isinstance(c, dict) and c.get("nama")]
+
+
+def load_companies(path: Path) -> list[dict]:
+    """Perusahaan yang lowongannya bisa ditarik setiap hari."""
+    out = []
+    for c in read_companies(path):
+        kind = str(c.get("ats") or "").lower()
+        if kind in BOARDS and c.get("slug"):
+            out.append(c)
+        elif kind in karier.SUPPORTED and (c.get("url") or c.get("slug")):
+            out.append(c)
+    return out
+
+
+def company_via(company: dict) -> str:
+    kind = company["ats"].lower()
+    return f"{kind}:{company['slug']}" if kind in BOARDS else f"{kind}:{karier.source_key(company)}"
+
+
+def fetch_companies(companies: list[dict], refs: dict, prev: dict, now: datetime):
+    """Tarik semua situs karier perusahaan secara paralel. Mengembalikan (lowongan, sumber_utuh, ringkasan)."""
+    from concurrent.futures import ThreadPoolExecutor, wait
+
+    fresh, complete, sources = [], set(), []
+    by_via: dict[str, dict] = {}
+    for job in prev.values():
+        if job.get("link"):
+            by_via.setdefault(job["via"], {})[job["link"]] = job
+
+    def one(company):
+        if company["ats"].lower() in BOARDS:
+            return fetch_board(company, refs["provinces"])
+        return karier.fetch_company(company, refs, by_via.get(company_via(company)), now)
+
+    pool = ThreadPoolExecutor(max_workers=6)
+    futures = {pool.submit(one, c): c for c in companies}
+    done, pending = wait(futures, timeout=COMPANY_BUDGET_SEC)
+    for fut, company in futures.items():
+        label = company.get("label") or company.get("nama") or company.get("slug")
+        base = {"name": f"Karier {label}", "jenis": "perusahaan"}
+        if fut in pending:
+            log(f"! {label}: melewati batas waktu")
+            sources.append({**base, "ok": False, "count": 0, "error": "melewati batas waktu"})
+            continue
+        try:
+            jobs, raw_count = fut.result()
+        except Exception as err:  # noqa: BLE001
+            log(f"! {label} gagal: {err}")
+            sources.append({**base, "ok": False, "count": 0, "error": str(err)[:200]})
+            continue
+        fresh += jobs
+        complete.add(company_via(company))
+        sources.append({**base, "ok": True, "count": len(jobs), "total": raw_count})
+        log(f"{label}: {len(jobs)} lowongan di Indonesia dari {raw_count}")
+    pool.shutdown(wait=False, cancel_futures=True)
+    return fresh, complete, sources
 
 
 # ---------------------------------------------------------------- penggabungan + riwayat
@@ -645,17 +713,12 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
         log(f"! Karirhub gagal: {err}")
         sources.append({"name": "Karirhub Kemnaker", "ok": False, "count": 0, "error": str(err)[:200]})
 
-    for company in load_companies(out_dir / "perusahaan.json"):
-        label = company.get("nama") or company["slug"]
-        try:
-            jobs, raw_count = fetch_board(company, refs["provinces"])
-            fresh += jobs
-            complete.add(f"{company['ats'].lower()}:{company['slug']}")
-            sources.append({"name": f"Karier {label}", "ok": True, "count": len(jobs), "total": raw_count})
-            log(f"{label}: {len(jobs)} lowongan di Indonesia dari {raw_count}")
-        except Exception as err:  # noqa: BLE001
-            log(f"! {label} gagal: {err}")
-            sources.append({"name": f"Karier {label}", "ok": False, "count": 0, "error": str(err)[:200]})
+    companies = load_companies(out_dir / "perusahaan.json")
+    if companies:
+        jobs, whole, company_sources = fetch_companies(companies, refs, prev, now)
+        fresh += jobs
+        complete |= whole
+        sources += company_sources
 
     if not fresh:
         log("Tidak ada data yang berhasil ditarik; berkas lama tidak diubah.")
@@ -690,11 +753,44 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
     return 0
 
 
+def check(out_dir: Path, now: datetime | None = None, only: str = "") -> int:
+    """Periksa situs karier semua perusahaan dan tulis cek-karier.json (data lowongan tidak diubah)."""
+    now = now or datetime.now(WIB)
+    companies = read_companies(out_dir / "perusahaan.json")
+    if only:
+        wanted = {x.strip().lower() for x in only.split(",")}
+        companies = [c for c in companies if str(c.get("kode", "")).lower() in wanted
+                     or c["nama"].lower() in wanted or str(c.get("slug", "")).lower() in wanted]
+    log(f"Cek situs karier {len(companies)} perusahaan")
+    refs = load_refs()
+    results = karier.check_all(companies, refs)
+    ok = sum(1 for r in results if any(u.get("ok") and u.get("indonesia") for u in r.get("uji", [])))
+    report = {"diperiksa": now.isoformat(timespec="seconds"), "jumlah": len(results), "berhasil": ok, "hasil": results}
+    path = out_dir / "cek-karier.json"
+    path.write_text(json.dumps(report, ensure_ascii=False, indent=1), "utf-8")
+    log(f"Selesai: {ok} dari {len(results)} perusahaan sudah menghasilkan lowongan. Hasil di {path.name}")
+    step = os.environ.get("GITHUB_STEP_SUMMARY")
+    if step:
+        with open(step, "a", encoding="utf-8") as fh:
+            fh.write(f"### Cek situs karier {now:%d-%m-%Y %H.%M} WIB\n\n{ok} dari {len(results)} perusahaan "
+                     f"menghasilkan lowongan.\n\n| Perusahaan | Situs | Platform | Lowongan |\n|---|---|---|---|\n")
+            for r in results:
+                site = next((s for s in r.get("situs", []) if s.get("status") == 200), None)
+                best = max((u.get("indonesia", 0) for u in r.get("uji", []) if u.get("ok")), default=0)
+                fh.write(f"| {r.get('kode') or '-'} {r['nama']} | {site['status'] if site else 'gagal'} | "
+                         f"{', '.join(r.get('terdeteksi', {})) or '-'} | {best} |\n")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Tarik lowongan harian untuk Tracking Loker.")
     parser.add_argument("--out", type=Path, default=HERE, help="folder tujuan jobs.json / links.json / stats.json")
     parser.add_argument("--max-pages", type=int, default=MAX_PAGES, help="batas halaman Karirhub (untuk uji cepat)")
+    parser.add_argument("--cek", action="store_true", help="periksa situs karier perusahaan, tulis cek-karier.json")
+    parser.add_argument("--hanya", default="", help="dengan --cek: kode/nama perusahaan, pisahkan dengan koma")
     args = parser.parse_args(argv)
+    if args.cek:
+        return check(args.out, only=args.hanya)
     return run(args.out, max_pages=args.max_pages)
 
 

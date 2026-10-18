@@ -74,7 +74,15 @@ Dirancang dari awal untuk layar ponsel: filter muncul sebagai lembar dari bawah,
 | Sumber | Isi | Cara ditarik |
 |---|---|---|
 | [Karirhub Kemnaker](https://karirhub.kemnaker.go.id) | Lowongan dalam negeri yang diposting perusahaan di Karirhub dan dari portal mitranya (Toploker, Glints, HiredToday, Kalibrr, Kitalulus, REDY, Diploy) | API publik Karirhub, semua halaman, setiap hari |
-| Situs karier perusahaan | Lowongan berlokasi di Indonesia dari perusahaan di [`perusahaan.json`](perusahaan.json) (Greenhouse, Lever, Ashby) | API papan karier publik, setiap hari |
+| Situs karier perusahaan | Lowongan berlokasi di Indonesia dari sekitar 100 emiten berkapitalisasi pasar terbesar di BEI beserta anak usahanya, yang terdaftar di [`perusahaan.json`](perusahaan.json) | API atau halaman lowongan resmi tiap perusahaan, setiap hari |
+
+### Situs karier emiten besar
+
+Banyak perusahaan besar, terutama bank, BUMN, dan grup konglomerasi, lebih sering membuka lowongan di situs kariernya sendiri daripada di portal lowongan. Karena itu Tracking Loker juga membaca situs karier sekitar 100 emiten dengan kapitalisasi pasar terbesar di BEI (urutannya berubah setiap hari) serta anak usaha besarnya, misalnya Telkomsel, Pamapersada, dan Toyota Astra. Setiap perusahaan dicatat di `perusahaan.json` bersama kode saham, grup, dan induknya.
+
+Perusahaan besar umumnya memakai sistem rekrutmen yang sama, jadi satu pembaca melayani banyak perusahaan: Workday, SAP SuccessFactors, Oracle Recruiting Cloud, SmartRecruiters, Workable, Radancy, Greenhouse, Lever, Ashby, dan situs apa pun yang memasang data lowongan standar schema.org `JobPosting`. Hanya lowongan berlokasi di Indonesia yang diambil. Pembacanya ada di [`karier.py`](karier.py).
+
+Untuk menambah atau memeriksa perusahaan, jalankan workflow **Cek situs karier** di tab Actions. Workflow ini membuka situs karier semua perusahaan, mendeteksi sistem rekrutmen yang dipakai, mencoba menarik lowongannya, lalu menyimpan laporannya di `cek-karier.json` tanpa mengubah data lowongan. Bisa juga dijalankan untuk beberapa emiten saja dengan mengisi kodenya, misalnya `BBCA,TLKM`.
 
 Setiap penarikan dicatat di `stats.json` (lowongan aktif, baru, dan ditutup per hari) sehingga tren pasar kerja terbentuk dengan sendirinya. Bila satu sumber gagal ditarik, lowongan lamanya tetap ditampilkan sampai sumber itu kembali, jadi situs tidak pernah tiba-tiba kosong.
 
@@ -86,7 +94,7 @@ Lowongan resmi tidak pernah memungut biaya. Tracking Loker mengingatkan hal ini 
 
 ## Dibangun dengan
 
-Python (pustaka standar) · GitHub Actions · JavaScript · GitHub Pages · PDF.js · Mammoth · Google Sans Flex
+Python (pustaka standar) · GitHub Actions · HTML semantik · JavaScript · GitHub Pages · PDF.js · Mammoth · Google Sans Flex
 
 ---
 

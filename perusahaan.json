@@ -1,3 +1,1339 @@
 [
-  { "nama": "Xendit", "ats": "greenhouse", "slug": "xendit", "industri": "Teknologi Finansial" }
+ {
+  "kode": "BBCA",
+  "nama": "PT Bank Central Asia Tbk",
+  "label": "BCA",
+  "grup": "Djarum",
+  "industri": "Perbankan",
+  "web": "https://www.bca.co.id",
+  "situs": [
+   "https://karir.bca.co.id/"
+  ]
+ },
+ {
+  "kode": "BBRI",
+  "nama": "PT Bank Rakyat Indonesia (Persero) Tbk",
+  "label": "BRI",
+  "grup": "BUMN",
+  "industri": "Perbankan",
+  "web": "https://bri.co.id",
+  "situs": [
+   "https://e-recruitment.bri.co.id/",
+   "https://bri.co.id/karir"
+  ]
+ },
+ {
+  "kode": "BMRI",
+  "nama": "PT Bank Mandiri (Persero) Tbk",
+  "label": "Bank Mandiri",
+  "grup": "BUMN",
+  "industri": "Perbankan",
+  "web": "https://www.bankmandiri.co.id",
+  "situs": [
+   "https://www.bankmandiri.co.id/karir"
+  ]
+ },
+ {
+  "kode": "BBNI",
+  "nama": "PT Bank Negara Indonesia (Persero) Tbk",
+  "label": "BNI",
+  "grup": "BUMN",
+  "industri": "Perbankan",
+  "web": "https://www.bni.co.id",
+  "situs": [
+   "https://e-recruitment.bni.co.id/",
+   "https://www.bni.co.id/id-id/karir"
+  ]
+ },
+ {
+  "kode": "BRIS",
+  "nama": "PT Bank Syariah Indonesia Tbk",
+  "label": "BSI",
+  "grup": "BUMN",
+  "industri": "Perbankan Syariah",
+  "web": "https://www.bankbsi.co.id",
+  "situs": [
+   "https://www.bankbsi.co.id/karir"
+  ]
+ },
+ {
+  "kode": "BBTN",
+  "nama": "PT Bank Tabungan Negara (Persero) Tbk",
+  "label": "BTN",
+  "grup": "BUMN",
+  "industri": "Perbankan",
+  "web": "https://www.btn.co.id",
+  "situs": [
+   "https://www.btn.co.id/id/Karir"
+  ]
+ },
+ {
+  "kode": "BNLI",
+  "nama": "PT Bank Permata Tbk",
+  "label": "PermataBank",
+  "grup": "Bangkok Bank",
+  "industri": "Perbankan",
+  "web": "https://www.permatabank.com",
+  "situs": [
+   "https://www.permatabank.com/id/karir"
+  ],
+  "global": true
+ },
+ {
+  "kode": "BNGA",
+  "nama": "PT Bank CIMB Niaga Tbk",
+  "label": "CIMB Niaga",
+  "grup": "CIMB",
+  "industri": "Perbankan",
+  "web": "https://www.cimbniaga.co.id",
+  "situs": [
+   "https://www.cimbniaga.co.id/id/karir"
+  ],
+  "global": true
+ },
+ {
+  "kode": "NISP",
+  "nama": "PT Bank OCBC NISP Tbk",
+  "label": "OCBC Indonesia",
+  "grup": "OCBC",
+  "industri": "Perbankan",
+  "web": "https://www.ocbc.id",
+  "situs": [
+   "https://www.ocbc.id/id/karir"
+  ],
+  "global": true
+ },
+ {
+  "kode": "BDMN",
+  "nama": "PT Bank Danamon Indonesia Tbk",
+  "label": "Danamon",
+  "grup": "MUFG",
+  "industri": "Perbankan",
+  "web": "https://www.danamon.co.id",
+  "situs": [
+   "https://www.danamon.co.id/id/Karir"
+  ],
+  "global": true
+ },
+ {
+  "kode": "PNBN",
+  "nama": "PT Bank Pan Indonesia Tbk",
+  "label": "Panin Bank",
+  "grup": "Panin",
+  "industri": "Perbankan",
+  "web": "https://www.panin.co.id",
+  "situs": [
+   "https://www.panin.co.id/karir"
+  ]
+ },
+ {
+  "kode": "MEGA",
+  "nama": "PT Bank Mega Tbk",
+  "label": "Bank Mega",
+  "grup": "CT Corp",
+  "industri": "Perbankan",
+  "web": "https://www.bankmega.com",
+  "situs": [
+   "https://www.bankmega.com/id/karir/"
+  ]
+ },
+ {
+  "kode": "ARTO",
+  "nama": "PT Bank Jago Tbk",
+  "label": "Bank Jago",
+  "grup": "GoTo",
+  "industri": "Perbankan Digital",
+  "web": "https://www.jago.com",
+  "situs": [
+   "https://www.jago.com/id/karir",
+   "https://www.jago.com/en/careers"
+  ],
+  "coba": [
+   {
+    "ats": "lever",
+    "slug": "jago"
+   },
+   {
+    "ats": "greenhouse",
+    "slug": "bankjago"
+   }
+  ]
+ },
+ {
+  "kode": "BTPS",
+  "nama": "PT Bank BTPN Syariah Tbk",
+  "label": "BTPN Syariah",
+  "grup": "SMBC",
+  "industri": "Perbankan Syariah",
+  "web": "https://www.btpnsyariah.com",
+  "situs": [
+   "https://www.btpnsyariah.com/karir"
+  ]
+ },
+ {
+  "kode": "BBKP",
+  "nama": "PT Bank KB Indonesia Tbk",
+  "label": "KB Bank",
+  "grup": "KB Financial",
+  "industri": "Perbankan",
+  "web": "https://www.kbbank.co.id",
+  "situs": [
+   "https://www.kbbank.co.id/karir"
+  ]
+ },
+ {
+  "kode": "TLKM",
+  "nama": "PT Telkom Indonesia (Persero) Tbk",
+  "label": "Telkom Indonesia",
+  "grup": "BUMN",
+  "industri": "Telekomunikasi",
+  "web": "https://www.telkom.co.id",
+  "situs": [
+   "https://recruitment.telkom.co.id/"
+  ]
+ },
+ {
+  "kode": "",
+  "nama": "PT Telekomunikasi Selular",
+  "label": "Telkomsel",
+  "grup": "BUMN",
+  "induk": "TLKM",
+  "industri": "Telekomunikasi",
+  "web": "https://www.telkomsel.com",
+  "situs": [
+   "https://www.telkomsel.com/about-us/careers",
+   "https://www.telkomsel.com/en/about-us/careers/students-graduates"
+  ]
+ },
+ {
+  "kode": "",
+  "nama": "PT Telkomsel Ekosistem Digital (INDICO)",
+  "label": "INDICO",
+  "grup": "BUMN",
+  "induk": "TLKM",
+  "industri": "Teknologi",
+  "web": "https://indico.id",
+  "ats": "workable",
+  "slug": "indico"
+ },
+ {
+  "kode": "MTEL",
+  "nama": "PT Dayamitra Telekomunikasi Tbk",
+  "label": "Mitratel",
+  "grup": "BUMN",
+  "induk": "TLKM",
+  "industri": "Menara Telekomunikasi",
+  "web": "https://www.mitratel.co.id",
+  "situs": [
+   "https://www.mitratel.co.id/karir"
+  ]
+ },
+ {
+  "kode": "ISAT",
+  "nama": "PT Indosat Tbk",
+  "label": "Indosat Ooredoo Hutchison",
+  "grup": "Ooredoo Hutchison",
+  "industri": "Telekomunikasi",
+  "web": "https://ioh.co.id",
+  "situs": [
+   "https://ioh.co.id/portal/id/iohcareers",
+   "https://careers.ioh.co.id/"
+  ]
+ },
+ {
+  "kode": "EXCL",
+  "nama": "PT XLSMART Telecom Sejahtera Tbk",
+  "label": "XLSMART",
+  "grup": "Axiata & Sinar Mas",
+  "industri": "Telekomunikasi",
+  "web": "https://www.xlsmart.co.id",
+  "situs": [
+   "https://www.xlsmart.co.id/karir",
+   "https://www.xlaxiata.co.id/id/karir"
+  ]
+ },
+ {
+  "kode": "TOWR",
+  "nama": "PT Sarana Menara Nusantara Tbk",
+  "label": "Protelindo",
+  "grup": "Djarum",
+  "industri": "Menara Telekomunikasi",
+  "web": "https://www.protelindo.net",
+  "situs": [
+   "https://www.protelindo.net/careers"
+  ]
+ },
+ {
+  "kode": "TBIG",
+  "nama": "PT Tower Bersama Infrastructure Tbk",
+  "label": "Tower Bersama",
+  "grup": "Saratoga",
+  "industri": "Menara Telekomunikasi",
+  "web": "https://www.tower-bersama.com",
+  "situs": [
+   "https://www.tower-bersama.com/karir"
+  ]
+ },
+ {
+  "kode": "DCII",
+  "nama": "PT DCI Indonesia Tbk",
+  "label": "DCI Indonesia",
+  "grup": "DCI",
+  "industri": "Pusat Data",
+  "web": "https://www.dci-indonesia.com",
+  "situs": [
+   "https://www.dci-indonesia.com/careers"
+  ]
+ },
+ {
+  "kode": "MORA",
+  "nama": "PT Mora Telematika Indonesia Tbk",
+  "label": "Moratelindo",
+  "grup": "Moratelindo",
+  "industri": "Telekomunikasi",
+  "web": "https://moratelindo.co.id",
+  "situs": [
+   "https://moratelindo.co.id/karir"
+  ]
+ },
+ {
+  "kode": "GOTO",
+  "nama": "PT GoTo Gojek Tokopedia Tbk",
+  "label": "GoTo",
+  "grup": "GoTo",
+  "industri": "Teknologi",
+  "web": "https://www.gotocompany.com",
+  "situs": [
+   "https://www.gotocompany.com/en/careers",
+   "https://www.gojek.com/careers"
+  ],
+  "coba": [
+   {
+    "ats": "lever",
+    "slug": "gojek"
+   },
+   {
+    "ats": "lever",
+    "slug": "GoToGroup"
+   },
+   {
+    "ats": "greenhouse",
+    "slug": "gotogroup"
+   }
+  ]
+ },
+ {
+  "kode": "BUKA",
+  "nama": "PT Bukalapak.com Tbk",
+  "label": "Bukalapak",
+  "grup": "Emtek",
+  "industri": "Teknologi",
+  "web": "https://www.bukalapak.com",
+  "situs": [
+   "https://careers.bukalapak.com/"
+  ],
+  "coba": [
+   {
+    "ats": "lever",
+    "slug": "bukalapak"
+   }
+  ]
+ },
+ {
+  "kode": "BELI",
+  "nama": "PT Global Digital Niaga Tbk",
+  "label": "Blibli",
+  "grup": "Djarum",
+  "industri": "E-commerce",
+  "web": "https://www.blibli.com",
+  "situs": [
+   "https://careers.blibli.com/"
+  ],
+  "coba": [
+   {
+    "ats": "lever",
+    "slug": "blibli"
+   },
+   {
+    "ats": "greenhouse",
+    "slug": "blibli"
+   }
+  ]
+ },
+ {
+  "kode": "EMTK",
+  "nama": "PT Elang Mahkota Teknologi Tbk",
+  "label": "Emtek",
+  "grup": "Emtek",
+  "industri": "Media & Teknologi",
+  "web": "https://www.emtek.co.id",
+  "situs": [
+   "https://www.emtek.co.id/career"
+  ]
+ },
+ {
+  "kode": "",
+  "nama": "PT Vidio Dot Com",
+  "label": "Vidio",
+  "grup": "Emtek",
+  "induk": "EMTK",
+  "industri": "Media Digital",
+  "web": "https://www.vidio.com",
+  "situs": [
+   "https://www.vidio.com/careers"
+  ],
+  "coba": [
+   {
+    "ats": "lever",
+    "slug": "vidio"
+   },
+   {
+    "ats": "greenhouse",
+    "slug": "vidio"
+   }
+  ]
+ },
+ {
+  "kode": "SCMA",
+  "nama": "PT Surya Citra Media Tbk",
+  "label": "SCM",
+  "grup": "Emtek",
+  "induk": "EMTK",
+  "industri": "Media",
+  "web": "https://www.scm.co.id",
+  "situs": [
+   "https://www.scm.co.id/karir"
+  ]
+ },
+ {
+  "kode": "ASII",
+  "nama": "PT Astra International Tbk",
+  "label": "Astra",
+  "grup": "Astra",
+  "industri": "Konglomerasi",
+  "web": "https://www.astra.co.id",
+  "situs": [
+   "https://career.astra.co.id/",
+   "https://www.astra.co.id/Career"
+  ]
+ },
+ {
+  "kode": "UNTR",
+  "nama": "PT United Tractors Tbk",
+  "label": "United Tractors",
+  "grup": "Astra",
+  "induk": "ASII",
+  "industri": "Alat Berat & Pertambangan",
+  "web": "https://www.unitedtractors.com",
+  "situs": [
+   "https://www.unitedtractors.com/career/"
+  ]
+ },
+ {
+  "kode": "",
+  "nama": "PT Pamapersada Nusantara",
+  "label": "Pamapersada",
+  "grup": "Astra",
+  "induk": "UNTR",
+  "industri": "Kontraktor Tambang",
+  "web": "https://www.pamapersada.com",
+  "situs": [
+   "https://www.pamapersada.com/career"
+  ]
+ },
+ {
+  "kode": "AALI",
+  "nama": "PT Astra Agro Lestari Tbk",
+  "label": "Astra Agro",
+  "grup": "Astra",
+  "induk": "ASII",
+  "industri": "Perkebunan",
+  "web": "https://www.astra-agro.co.id",
+  "situs": [
+   "https://www.astra-agro.co.id/karir/"
+  ]
+ },
+ {
+  "kode": "AUTO",
+  "nama": "PT Astra Otoparts Tbk",
+  "label": "Astra Otoparts",
+  "grup": "Astra",
+  "induk": "ASII",
+  "industri": "Otomotif",
+  "web": "https://www.astra-otoparts.com",
+  "situs": [
+   "https://www.astra-otoparts.com/karir"
+  ]
+ },
+ {
+  "kode": "",
+  "nama": "PT Toyota-Astra Motor",
+  "label": "Toyota Astra Motor",
+  "grup": "Astra",
+  "induk": "ASII",
+  "industri": "Otomotif",
+  "web": "https://www.toyota.astra.co.id",
+  "situs": [
+   "https://www.toyota.astra.co.id/career"
+  ]
+ },
+ {
+  "kode": "",
+  "nama": "PT Astra Honda Motor",
+  "label": "Astra Honda Motor",
+  "grup": "Astra",
+  "induk": "ASII",
+  "industri": "Otomotif",
+  "web": "https://www.astra-honda.com",
+  "situs": [
+   "https://www.astra-honda.com/karir"
+  ]
+ },
+ {
+  "kode": "",
+  "nama": "PT Federal International Finance (FIFGROUP)",
+  "label": "FIFGROUP",
+  "grup": "Astra",
+  "induk": "ASII",
+  "industri": "Pembiayaan",
+  "web": "https://www.fifgroup.co.id",
+  "situs": [
+   "https://www.fifgroup.co.id/karir"
+  ]
+ },
+ {
+  "kode": "",
+  "nama": "PT Astra Credit Companies",
+  "label": "ACC",
+  "grup": "Astra",
+  "induk": "ASII",
+  "industri": "Pembiayaan",
+  "web": "https://www.acc.co.id",
+  "situs": [
+   "https://www.acc.co.id/karir"
+  ]
+ },
+ {
+  "kode": "BRPT",
+  "nama": "PT Barito Pacific Tbk",
+  "label": "Barito Pacific",
+  "grup": "Barito",
+  "industri": "Konglomerasi",
+  "web": "https://www.barito-pacific.com",
+  "situs": [
+   "https://www.barito-pacific.com/career"
+  ]
+ },
+ {
+  "kode": "BREN",
+  "nama": "PT Barito Renewables Energy Tbk",
+  "label": "Barito Renewables",
+  "grup": "Barito",
+  "induk": "BRPT",
+  "industri": "Energi Terbarukan",
+  "web": "https://www.barito-renewables.co.id",
+  "situs": [
+   "https://www.starenergygeothermal.com/careers"
+  ]
+ },
+ {
+  "kode": "TPIA",
+  "nama": "PT Chandra Asri Pacific Tbk",
+  "label": "Chandra Asri",
+  "grup": "Barito",
+  "induk": "BRPT",
+  "industri": "Petrokimia",
+  "web": "https://www.chandra-asri.com",
+  "situs": [
+   "https://www.chandra-asri.com/careers"
+  ]
+ },
+ {
+  "kode": "CUAN",
+  "nama": "PT Petrindo Jaya Kreasi Tbk",
+  "label": "Petrindo",
+  "grup": "Barito",
+  "industri": "Pertambangan",
+  "web": "https://www.petrindo.co.id",
+  "situs": [
+   "https://www.petrindo.co.id/career"
+  ]
+ },
+ {
+  "kode": "BYAN",
+  "nama": "PT Bayan Resources Tbk",
+  "label": "Bayan Resources",
+  "grup": "Bayan",
+  "industri": "Pertambangan Batu Bara",
+  "web": "https://www.bayan.com.sg",
+  "situs": [
+   "https://www.bayan.com.sg/careers"
+  ]
+ },
+ {
+  "kode": "AMMN",
+  "nama": "PT Amman Mineral Internasional Tbk",
+  "label": "Amman Mineral",
+  "grup": "Amman",
+  "industri": "Pertambangan Tembaga & Emas",
+  "web": "https://www.amman.co.id",
+  "situs": [
+   "https://www.amman.co.id/karir",
+   "https://www.amman.co.id/en/careers"
+  ]
+ },
+ {
+  "kode": "ADRO",
+  "nama": "PT AlamTri Resources Indonesia Tbk",
+  "label": "AlamTri",
+  "grup": "Adaro",
+  "industri": "Energi & Mineral",
+  "web": "https://www.alamtri.com",
+  "situs": [
+   "https://www.alamtri.com/careers"
+  ]
+ },
+ {
+  "kode": "AADI",
+  "nama": "PT Adaro Andalan Indonesia Tbk",
+  "label": "Adaro Andalan",
+  "grup": "Adaro",
+  "industri": "Pertambangan Batu Bara",
+  "web": "https://www.adaroindonesia.com",
+  "situs": [
+   "https://www.adaroindonesia.com/careers"
+  ]
+ },
+ {
+  "kode": "ADMR",
+  "nama": "PT AlamTri Minerals Indonesia Tbk",
+  "label": "AlamTri Minerals",
+  "grup": "Adaro",
+  "induk": "ADRO",
+  "industri": "Pertambangan",
+  "web": "https://www.alamtriminerals.com",
+  "situs": [
+   "https://www.alamtriminerals.com/careers"
+  ]
+ },
+ {
+  "kode": "EMAS",
+  "nama": "PT Merdeka Gold Resources Tbk",
+  "label": "Merdeka Gold",
+  "grup": "Merdeka",
+  "induk": "MDKA",
+  "industri": "Pertambangan Emas",
+  "web": "https://www.merdekagold.com",
+  "situs": [
+   "https://merdekacoppergold.com/en/careers/"
+  ]
+ },
+ {
+  "kode": "MDKA",
+  "nama": "PT Merdeka Copper Gold Tbk",
+  "label": "Merdeka Copper Gold",
+  "grup": "Merdeka",
+  "industri": "Pertambangan",
+  "web": "https://merdekacoppergold.com",
+  "situs": [
+   "https://merdekacoppergold.com/en/careers/"
+  ]
+ },
+ {
+  "kode": "MBMA",
+  "nama": "PT Merdeka Battery Materials Tbk",
+  "label": "Merdeka Battery",
+  "grup": "Merdeka",
+  "induk": "MDKA",
+  "industri": "Nikel & Baterai",
+  "web": "https://merdekabattery.com",
+  "situs": [
+   "https://merdekabattery.com/career/"
+  ]
+ },
+ {
+  "kode": "BRMS",
+  "nama": "PT Bumi Resources Minerals Tbk",
+  "label": "BRMS",
+  "grup": "Bakrie",
+  "industri": "Pertambangan",
+  "web": "https://www.brms.co.id",
+  "situs": [
+   "https://www.brms.co.id/career"
+  ]
+ },
+ {
+  "kode": "BUMI",
+  "nama": "PT Bumi Resources Tbk",
+  "label": "Bumi Resources",
+  "grup": "Bakrie",
+  "industri": "Pertambangan Batu Bara",
+  "web": "https://www.bumiresources.com",
+  "situs": [
+   "https://www.kpc.co.id/careers"
+  ]
+ },
+ {
+  "kode": "PTBA",
+  "nama": "PT Bukit Asam Tbk",
+  "label": "Bukit Asam",
+  "grup": "BUMN",
+  "industri": "Pertambangan Batu Bara",
+  "web": "https://www.ptba.co.id",
+  "situs": [
+   "https://www.ptba.co.id/karir"
+  ]
+ },
+ {
+  "kode": "ANTM",
+  "nama": "PT Aneka Tambang Tbk",
+  "label": "Antam",
+  "grup": "BUMN",
+  "industri": "Pertambangan",
+  "web": "https://www.antam.com",
+  "situs": [
+   "https://www.antam.com/id/karir"
+  ]
+ },
+ {
+  "kode": "INCO",
+  "nama": "PT Vale Indonesia Tbk",
+  "label": "Vale Indonesia",
+  "grup": "MIND ID",
+  "industri": "Pertambangan Nikel",
+  "web": "https://www.vale.com/indonesia",
+  "situs": [
+   "https://www.vale.com/indonesia/careers"
+  ],
+  "coba": [
+   {
+    "ats": "successfactors",
+    "url": "https://jobs.vale.com",
+    "lokasi": "Indonesia"
+   }
+  ],
+  "global": true
+ },
+ {
+  "kode": "ITMG",
+  "nama": "PT Indo Tambangraya Megah Tbk",
+  "label": "ITM",
+  "grup": "Banpu",
+  "industri": "Pertambangan Batu Bara",
+  "web": "https://www.itmg.co.id",
+  "situs": [
+   "https://www.itmg.co.id/en/career"
+  ]
+ },
+ {
+  "kode": "INDY",
+  "nama": "PT Indika Energy Tbk",
+  "label": "Indika Energy",
+  "grup": "Indika",
+  "industri": "Energi",
+  "web": "https://www.indikaenergy.co.id",
+  "situs": [
+   "https://www.indikaenergy.co.id/careers/"
+  ]
+ },
+ {
+  "kode": "HRUM",
+  "nama": "PT Harum Energy Tbk",
+  "label": "Harum Energy",
+  "grup": "Harum",
+  "industri": "Pertambangan",
+  "web": "https://www.harumenergy.com",
+  "situs": [
+   "https://www.harumenergy.com/career"
+  ]
+ },
+ {
+  "kode": "NCKL",
+  "nama": "PT Trimegah Bangun Persada Tbk",
+  "label": "Harita Nickel",
+  "grup": "Harita",
+  "industri": "Nikel",
+  "web": "https://haritanickel.com",
+  "situs": [
+   "https://haritanickel.com/career/"
+  ]
+ },
+ {
+  "kode": "MEDC",
+  "nama": "PT Medco Energi Internasional Tbk",
+  "label": "MedcoEnergi",
+  "grup": "Medco",
+  "industri": "Minyak & Gas",
+  "web": "https://www.medcoenergi.com",
+  "situs": [
+   "https://www.medcoenergi.com/en/careers"
+  ]
+ },
+ {
+  "kode": "PGAS",
+  "nama": "PT Perusahaan Gas Negara Tbk",
+  "label": "PGN",
+  "grup": "BUMN",
+  "industri": "Gas",
+  "web": "https://www.pgn.co.id",
+  "situs": [
+   "https://www.pgn.co.id/karir"
+  ]
+ },
+ {
+  "kode": "PGEO",
+  "nama": "PT Pertamina Geothermal Energy Tbk",
+  "label": "Pertamina Geothermal",
+  "grup": "BUMN",
+  "industri": "Energi Panas Bumi",
+  "web": "https://pge.pertamina.com",
+  "situs": [
+   "https://pge.pertamina.com/karir"
+  ]
+ },
+ {
+  "kode": "AKRA",
+  "nama": "PT AKR Corporindo Tbk",
+  "label": "AKR",
+  "grup": "AKR",
+  "industri": "Distribusi Energi & Kimia",
+  "web": "https://www.akr.co.id",
+  "situs": [
+   "https://www.akr.co.id/careers"
+  ]
+ },
+ {
+  "kode": "DSSA",
+  "nama": "PT Dian Swastatika Sentosa Tbk",
+  "label": "DSSA",
+  "grup": "Sinar Mas",
+  "industri": "Energi & Infrastruktur",
+  "web": "https://www.dssa.co.id",
+  "situs": [
+   "https://www.sinarmas.com/careers"
+  ]
+ },
+ {
+  "kode": "SMMA",
+  "nama": "PT Sinar Mas Multiartha Tbk",
+  "label": "Sinar Mas Multiartha",
+  "grup": "Sinar Mas",
+  "industri": "Jasa Keuangan",
+  "web": "https://www.sinarmasmultiartha.co.id",
+  "situs": [
+   "https://www.sinarmas.com/careers"
+  ]
+ },
+ {
+  "kode": "INKP",
+  "nama": "PT Indah Kiat Pulp & Paper Tbk",
+  "label": "APP Sinar Mas",
+  "grup": "Sinar Mas",
+  "industri": "Pulp & Kertas",
+  "web": "https://www.app.co.id",
+  "situs": [
+   "https://www.app.co.id/careers"
+  ]
+ },
+ {
+  "kode": "TKIM",
+  "nama": "PT Pabrik Kertas Tjiwi Kimia Tbk",
+  "label": "Tjiwi Kimia",
+  "grup": "Sinar Mas",
+  "industri": "Pulp & Kertas",
+  "web": "https://www.app.co.id",
+  "situs": [
+   "https://www.app.co.id/careers"
+  ]
+ },
+ {
+  "kode": "SMAR",
+  "nama": "PT Sinar Mas Agro Resources and Technology Tbk",
+  "label": "SMART",
+  "grup": "Sinar Mas",
+  "industri": "Agribisnis",
+  "web": "https://www.smart-tbk.com",
+  "situs": [
+   "https://www.smart-tbk.com/karir/"
+  ]
+ },
+ {
+  "kode": "BSDE",
+  "nama": "PT Bumi Serpong Damai Tbk",
+  "label": "Sinar Mas Land",
+  "grup": "Sinar Mas",
+  "industri": "Properti",
+  "web": "https://www.sinarmasland.com",
+  "situs": [
+   "https://www.sinarmasland.com/career"
+  ]
+ },
+ {
+  "kode": "DNET",
+  "nama": "PT Indoritel Makmur Internasional Tbk",
+  "label": "Indoritel",
+  "grup": "Salim",
+  "industri": "Investasi Ritel & Pangan",
+  "web": "https://www.indoritel.co.id"
+ },
+ {
+  "kode": "INDF",
+  "nama": "PT Indofood Sukses Makmur Tbk",
+  "label": "Indofood",
+  "grup": "Salim",
+  "industri": "Makanan",
+  "web": "https://www.indofood.com",
+  "situs": [
+   "https://www.indofood.com/careers"
+  ]
+ },
+ {
+  "kode": "ICBP",
+  "nama": "PT Indofood CBP Sukses Makmur Tbk",
+  "label": "Indofood CBP",
+  "grup": "Salim",
+  "induk": "INDF",
+  "industri": "Makanan",
+  "web": "https://www.indofoodcbp.com",
+  "situs": [
+   "https://www.indofood.com/careers"
+  ]
+ },
+ {
+  "kode": "",
+  "nama": "PT Indomarco Prismatama (Indomaret)",
+  "label": "Indomaret",
+  "grup": "Salim",
+  "industri": "Ritel",
+  "web": "https://www.indomaret.co.id",
+  "situs": [
+   "https://www.indomaret.co.id/karir"
+  ]
+ },
+ {
+  "kode": "AMRT",
+  "nama": "PT Sumber Alfaria Trijaya Tbk",
+  "label": "Alfamart",
+  "grup": "Alfa",
+  "industri": "Ritel",
+  "web": "https://alfamart.co.id",
+  "situs": [
+   "https://alfamart.co.id/karir",
+   "https://karir.alfamart.co.id/"
+  ]
+ },
+ {
+  "kode": "MAPI",
+  "nama": "PT Mitra Adiperkasa Tbk",
+  "label": "MAP",
+  "grup": "MAP",
+  "industri": "Ritel",
+  "web": "https://www.map.co.id",
+  "situs": [
+   "https://www.map.co.id/careers/"
+  ]
+ },
+ {
+  "kode": "MAPA",
+  "nama": "PT Map Aktif Adiperkasa Tbk",
+  "label": "MAP Active",
+  "grup": "MAP",
+  "induk": "MAPI",
+  "industri": "Ritel",
+  "web": "https://www.map-active.com",
+  "situs": [
+   "https://www.map.co.id/careers/"
+  ]
+ },
+ {
+  "kode": "ACES",
+  "nama": "PT Aspirasi Hidup Indonesia Tbk",
+  "label": "AZKO",
+  "grup": "Kawan Lama",
+  "industri": "Ritel",
+  "web": "https://www.aspirasihidup.com",
+  "situs": [
+   "https://www.kawanlamacareer.com/"
+  ]
+ },
+ {
+  "kode": "ERAA",
+  "nama": "PT Erajaya Swasembada Tbk",
+  "label": "Erajaya",
+  "grup": "Erajaya",
+  "industri": "Ritel Elektronik",
+  "web": "https://www.erajaya.com",
+  "situs": [
+   "https://www.erajaya.com/career"
+  ]
+ },
+ {
+  "kode": "HMSP",
+  "nama": "PT Hanjaya Mandala Sampoerna Tbk",
+  "label": "Sampoerna",
+  "grup": "Philip Morris",
+  "industri": "Tembakau",
+  "web": "https://www.sampoerna.com",
+  "situs": [
+   "https://www.sampoerna.com/id/karir",
+   "https://www.pmi.com/careers"
+  ],
+  "global": true
+ },
+ {
+  "kode": "UNVR",
+  "nama": "PT Unilever Indonesia Tbk",
+  "label": "Unilever Indonesia",
+  "grup": "Unilever",
+  "industri": "Barang Konsumsi",
+  "web": "https://www.unilever.co.id",
+  "situs": [
+   "https://careers.unilever.com/en/indonesia"
+  ],
+  "ats": "radancy",
+  "url": "https://careers.unilever.com/en/location/indonesia-jobs/34155/1643084/2",
+  "global": true
+ },
+ {
+  "kode": "GGRM",
+  "nama": "PT Gudang Garam Tbk",
+  "label": "Gudang Garam",
+  "grup": "Gudang Garam",
+  "industri": "Tembakau",
+  "web": "https://www.gudanggaramtbk.com",
+  "situs": [
+   "https://www.gudanggaramtbk.com/karir"
+  ]
+ },
+ {
+  "kode": "KLBF",
+  "nama": "PT Kalbe Farma Tbk",
+  "label": "Kalbe",
+  "grup": "Kalbe",
+  "industri": "Farmasi",
+  "web": "https://www.kalbe.co.id",
+  "situs": [
+   "https://www.kalbe.co.id/id/karir",
+   "https://career.kalbe.co.id/"
+  ]
+ },
+ {
+  "kode": "SIDO",
+  "nama": "PT Industri Jamu dan Farmasi Sido Muncul Tbk",
+  "label": "Sido Muncul",
+  "grup": "Sido Muncul",
+  "industri": "Farmasi",
+  "web": "https://www.sidomuncul.co.id",
+  "situs": [
+   "https://www.sidomuncul.co.id/id/karir.html"
+  ]
+ },
+ {
+  "kode": "MYOR",
+  "nama": "PT Mayora Indah Tbk",
+  "label": "Mayora",
+  "grup": "Mayora",
+  "industri": "Makanan & Minuman",
+  "web": "https://www.mayoraindah.co.id",
+  "situs": [
+   "https://www.mayoraindah.co.id/career"
+  ]
+ },
+ {
+  "kode": "CPIN",
+  "nama": "PT Charoen Pokphand Indonesia Tbk",
+  "label": "Charoen Pokphand",
+  "grup": "CP Group",
+  "industri": "Pakan & Peternakan",
+  "web": "https://www.cp.co.id",
+  "situs": [
+   "https://www.cp.co.id/karir"
+  ]
+ },
+ {
+  "kode": "JPFA",
+  "nama": "PT Japfa Comfeed Indonesia Tbk",
+  "label": "Japfa",
+  "grup": "Japfa",
+  "industri": "Pakan & Peternakan",
+  "web": "https://www.japfacomfeed.co.id",
+  "situs": [
+   "https://www.japfacomfeed.co.id/id/karir"
+  ]
+ },
+ {
+  "kode": "AVIA",
+  "nama": "PT Avia Avian Tbk",
+  "label": "Avian Brands",
+  "grup": "Avian",
+  "industri": "Cat & Bahan Bangunan",
+  "web": "https://www.avianbrands.com",
+  "situs": [
+   "https://www.avianbrands.com/career"
+  ]
+ },
+ {
+  "kode": "SRAJ",
+  "nama": "PT Sejahteraraya Anugrahjaya Tbk",
+  "label": "Mayapada Hospital",
+  "grup": "Mayapada",
+  "industri": "Rumah Sakit",
+  "web": "https://www.mayapadahospital.com",
+  "situs": [
+   "https://www.mayapadahospital.com/career"
+  ]
+ },
+ {
+  "kode": "MIKA",
+  "nama": "PT Mitra Keluarga Karyasehat Tbk",
+  "label": "Mitra Keluarga",
+  "grup": "Mitra Keluarga",
+  "industri": "Rumah Sakit",
+  "web": "https://www.mitrakeluarga.com",
+  "situs": [
+   "https://www.mitrakeluarga.com/karir"
+  ]
+ },
+ {
+  "kode": "SILO",
+  "nama": "PT Siloam International Hospitals Tbk",
+  "label": "Siloam Hospitals",
+  "grup": "Lippo",
+  "industri": "Rumah Sakit",
+  "web": "https://www.siloamhospitals.com",
+  "situs": [
+   "https://www.siloamhospitals.com/karir",
+   "https://career.siloamhospitals.com/"
+  ]
+ },
+ {
+  "kode": "HEAL",
+  "nama": "PT Medikaloka Hermina Tbk",
+  "label": "Hermina",
+  "grup": "Hermina",
+  "industri": "Rumah Sakit",
+  "web": "https://herminahospitals.com",
+  "situs": [
+   "https://herminahospitals.com/id/karir"
+  ]
+ },
+ {
+  "kode": "MPRO",
+  "nama": "PT Maha Properti Indonesia Tbk",
+  "label": "Maha Properti",
+  "grup": "Maha",
+  "industri": "Properti",
+  "web": "https://www.mahaproperti.co.id"
+ },
+ {
+  "kode": "PANI",
+  "nama": "PT Pantai Indah Kapuk Dua Tbk",
+  "label": "PIK2",
+  "grup": "Agung Sedayu",
+  "industri": "Properti",
+  "web": "https://www.pik2.com",
+  "situs": [
+   "https://www.agungsedayu.com/career"
+  ]
+ },
+ {
+  "kode": "CASA",
+  "nama": "PT Capital Financial Indonesia Tbk",
+  "label": "Capital Financial",
+  "grup": "Capital",
+  "industri": "Jasa Keuangan",
+  "web": "https://www.capitalfinancial.co.id"
+ },
+ {
+  "kode": "CTRA",
+  "nama": "PT Ciputra Development Tbk",
+  "label": "Ciputra",
+  "grup": "Ciputra",
+  "industri": "Properti",
+  "web": "https://www.ciputra.com",
+  "situs": [
+   "https://www.ciputra.com/careers/"
+  ]
+ },
+ {
+  "kode": "PWON",
+  "nama": "PT Pakuwon Jati Tbk",
+  "label": "Pakuwon",
+  "grup": "Pakuwon",
+  "industri": "Properti",
+  "web": "https://www.pakuwon.com",
+  "situs": [
+   "https://www.pakuwon.com/career"
+  ]
+ },
+ {
+  "kode": "SMRA",
+  "nama": "PT Summarecon Agung Tbk",
+  "label": "Summarecon",
+  "grup": "Summarecon",
+  "industri": "Properti",
+  "web": "https://www.summarecon.com",
+  "situs": [
+   "https://www.summarecon.com/karir"
+  ]
+ },
+ {
+  "kode": "SMGR",
+  "nama": "PT Semen Indonesia (Persero) Tbk",
+  "label": "SIG",
+  "grup": "BUMN",
+  "industri": "Semen",
+  "web": "https://www.sig.id",
+  "situs": [
+   "https://www.sig.id/karir"
+  ]
+ },
+ {
+  "kode": "INTP",
+  "nama": "PT Indocement Tunggal Prakarsa Tbk",
+  "label": "Indocement",
+  "grup": "Heidelberg Materials",
+  "industri": "Semen",
+  "web": "https://www.indocement.co.id",
+  "situs": [
+   "https://www.indocement.co.id/karir"
+  ],
+  "coba": [
+   {
+    "ats": "successfactors",
+    "url": "https://jobs.heidelbergmaterials.com",
+    "lokasi": "Indonesia"
+   }
+  ],
+  "global": true
+ },
+ {
+  "kode": "JSMR",
+  "nama": "PT Jasa Marga (Persero) Tbk",
+  "label": "Jasa Marga",
+  "grup": "BUMN",
+  "industri": "Jalan Tol",
+  "web": "https://www.jasamarga.com",
+  "situs": [
+   "https://www.jasamarga.com/karir"
+  ]
+ },
+ {
+  "kode": "PTRO",
+  "nama": "PT Petrosea Tbk",
+  "label": "Petrosea",
+  "grup": "Barito",
+  "industri": "Jasa Pertambangan & Konstruksi",
+  "web": "https://www.petrosea.com",
+  "situs": [
+   "https://www.petrosea.com/careers"
+  ]
+ },
+ {
+  "kode": "GEMS",
+  "nama": "PT Golden Energy Mines Tbk",
+  "label": "Golden Energy Mines",
+  "grup": "Sinar Mas",
+  "industri": "Pertambangan Batu Bara",
+  "web": "https://www.goldenenergymines.com",
+  "situs": [
+   "https://www.goldenenergymines.com/career"
+  ]
+ },
+ {
+  "kode": "MIDI",
+  "nama": "PT Midi Utama Indonesia Tbk",
+  "label": "Alfamidi",
+  "grup": "Alfa",
+  "induk": "AMRT",
+  "industri": "Ritel",
+  "web": "https://alfamidiku.com",
+  "situs": [
+   "https://alfamart.co.id/karir"
+  ]
+ },
+ {
+  "kode": "CMRY",
+  "nama": "PT Cisarua Mountain Dairy Tbk",
+  "label": "Cimory",
+  "grup": "Cimory",
+  "industri": "Makanan & Minuman",
+  "web": "https://www.cimory.com",
+  "situs": [
+   "https://www.cimory.com/career"
+  ]
+ },
+ {
+  "kode": "BNII",
+  "nama": "PT Bank Maybank Indonesia Tbk",
+  "label": "Maybank Indonesia",
+  "grup": "Maybank",
+  "industri": "Perbankan",
+  "web": "https://www.maybank.co.id",
+  "situs": [
+   "https://www.maybank.co.id/karir"
+  ],
+  "global": true
+ },
+ {
+  "kode": "BBHI",
+  "nama": "PT Allo Bank Indonesia Tbk",
+  "label": "Allo Bank",
+  "grup": "CT Corp",
+  "industri": "Perbankan Digital",
+  "web": "https://www.allobank.com",
+  "situs": [
+   "https://www.allobank.com/karir"
+  ]
+ },
+ {
+  "kode": "MLPT",
+  "nama": "PT Multipolar Technology Tbk",
+  "label": "Multipolar Technology",
+  "grup": "Lippo",
+  "industri": "Teknologi Informasi",
+  "web": "https://www.multipolar.com",
+  "situs": [
+   "https://www.multipolar.com/career"
+  ]
+ },
+ {
+  "kode": "IMPC",
+  "nama": "PT Impack Pratama Industri Tbk",
+  "label": "Impack Pratama",
+  "grup": "Impack",
+  "industri": "Bahan Bangunan",
+  "web": "https://www.impack-pratama.com",
+  "situs": [
+   "https://www.impack-pratama.com/career"
+  ]
+ },
+ {
+  "kode": "ESSA",
+  "nama": "PT ESSA Industries Indonesia Tbk",
+  "label": "ESSA",
+  "grup": "ESSA",
+  "industri": "Energi & Kimia",
+  "web": "https://www.essa.id",
+  "situs": [
+   "https://www.essa.id/careers"
+  ]
+ },
+ {
+  "kode": "TAPG",
+  "nama": "PT Triputra Agro Persada Tbk",
+  "label": "Triputra Agro",
+  "grup": "Triputra",
+  "industri": "Perkebunan",
+  "web": "https://www.tap-agri.com",
+  "situs": [
+   "https://www.tap-agri.com/karir"
+  ]
+ },
+ {
+  "nama": "Xendit",
+  "ats": "greenhouse",
+  "slug": "xendit",
+  "industri": "Teknologi Finansial"
+ }
 ]

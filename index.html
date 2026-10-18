@@ -61,13 +61,13 @@
 
   <main class="main">
     <!-- ================= Lowongan ================= -->
-    <section id="view-cari" class="view" data-view="cari">
-      <div class="hero">
-        <div class="hero-copy">
+    <section id="view-cari" class="view" data-view="cari" aria-labelledby="hero-title">
+      <header class="hero">
+        <hgroup class="hero-copy">
           <p class="eyebrow" id="hero-eyebrow">Diperbarui setiap pagi dari Karirhub Kemnaker</p>
           <h1 class="display" id="hero-title">Ada <mark id="hero-count">–</mark> lowongan yang sedang menunggumu.</h1>
           <p class="hero-sub" id="hero-sub">&nbsp;</p>
-        </div>
+        </hgroup>
         <div class="collage" aria-hidden="true">
           <span class="sh sh-cloud"><svg><use href="#i-bag"/></svg></span>
           <span class="sh sh-scallop"></span>
@@ -83,7 +83,7 @@
           <div class="tag-pill">Tracking Loker</div>
           <div class="stage"><span class="stage-pill"></span><img src="foto-tambang.webp" alt=""></div>
         </div>
-      </div>
+      </header>
 
       <form class="searchbar" id="searchbar" role="search">
         <label class="search-field">
@@ -101,9 +101,9 @@
         </label>
         <button class="btn cta" type="submit">Cari <span class="cta-dot"><svg><use href="#i-play"/></svg></span></button>
       </form>
-      <div class="quick" id="quick" aria-label="Cari sesuai jurusan"></div>
+      <section class="quick" id="quick" aria-labelledby="quick-label"></section>
 
-      <div class="moods" id="moods" aria-label="Mulai dari sini"></div>
+      <section class="moods" id="moods" aria-label="Mulai dari sini"></section>
       <a class="cv-promo" id="cv-promo" href="#cv">
         <span class="cv-promo-icon"><svg><use href="#i-doc"/></svg></span>
         <span class="cv-promo-text"><b id="cv-promo-title">Bingung mulai dari lowongan yang mana?</b><span id="cv-promo-sub">Upload CV-mu. Tracking Loker mencarikan lowongan yang cocok dengan jurusan, pengalaman, organisasi, lomba, dan keahlianmu.</span></span>
@@ -113,11 +113,11 @@
 
       <div class="layout">
         <aside class="filters" id="filters" aria-label="Filter">
-          <div class="sheet-head">
-            <b>Filter</b>
+          <header class="sheet-head">
+            <h2>Filter</h2>
             <button class="round" type="button" data-close-filters aria-label="Tutup filter"><svg><use href="#i-x"/></svg></button>
-          </div>
-          <div class="filter-body">
+          </header>
+          <form class="filter-body" id="filter-form" aria-label="Filter lowongan">
             <div class="fgroup">
               <label class="flabel" for="f-prov">Provinsi</label>
               <div class="select"><select id="f-prov"></select><svg><use href="#i-chev"/></svg></div>
@@ -130,89 +130,90 @@
               <label class="flabel" for="f-fn">Bidang pekerjaan</label>
               <div class="select"><select id="f-fn"></select><svg><use href="#i-chev"/></svg></div>
             </div>
-            <div class="fgroup">
-              <span class="flabel">Tipe pekerjaan</span>
+            <fieldset class="fgroup">
+              <legend class="flabel">Tipe pekerjaan</legend>
               <div class="chips" id="f-types"></div>
-            </div>
-            <div class="fgroup">
-              <span class="flabel">Pendidikan saya</span>
+            </fieldset>
+            <fieldset class="fgroup">
+              <legend class="flabel">Pendidikan saya</legend>
               <div class="chips" id="f-edu"></div>
               <p class="fhint">Menampilkan lowongan dengan syarat pendidikan setara atau di bawahnya.</p>
-            </div>
-            <div class="fgroup">
-              <span class="flabel">Gaji</span>
+            </fieldset>
+            <fieldset class="fgroup">
+              <legend class="flabel">Gaji</legend>
               <div class="chips" id="f-gaji"></div>
-            </div>
-            <div class="fgroup">
-              <span class="flabel">Diposting</span>
+            </fieldset>
+            <fieldset class="fgroup">
+              <legend class="flabel">Diposting</legend>
               <div class="chips" id="f-waktu"></div>
-            </div>
+            </fieldset>
             <div class="fgroup">
               <label class="flabel" for="f-src">Sumber</label>
               <div class="select"><select id="f-src"></select><svg><use href="#i-chev"/></svg></div>
             </div>
-          </div>
-          <div class="sheet-foot">
+          </form>
+          <footer class="sheet-foot">
             <button class="btn outline" type="button" id="reset">Atur ulang</button>
             <button class="btn dark" type="button" data-close-filters id="apply">Lihat hasil</button>
-          </div>
+          </footer>
         </aside>
 
-        <div class="results">
-          <div class="results-head">
-            <div class="results-title">
+        <section class="results" aria-labelledby="result-count">
+          <header class="results-head">
+            <hgroup class="results-title">
               <h2 class="title" id="result-count">&nbsp;</h2>
               <p class="note" id="result-note"></p>
-            </div>
+            </hgroup>
             <div class="results-tools">
               <button class="btn outline sm only-mobile" type="button" id="open-filters"><svg><use href="#i-filter"/></svg>Filter<i id="filter-badge" hidden></i></button>
               <div class="select sm"><select id="sort" aria-label="Urutkan"></select><svg><use href="#i-chev"/></svg></div>
             </div>
-          </div>
-          <div class="active-chips" id="active-chips"></div>
-          <div class="job-list" id="job-list" aria-live="polite"></div>
+          </header>
+          <ul class="active-chips" id="active-chips" aria-label="Filter yang aktif"></ul>
+          <ul class="job-list" id="job-list" role="list" aria-live="polite"></ul>
           <div class="more-row"><button class="btn outline" type="button" id="more" hidden>Tampilkan lebih banyak</button></div>
-        </div>
+        </section>
       </div>
     </section>
 
     <!-- ================= Cocokkan CV ================= -->
-    <section id="view-cv" class="view" data-view="cv" hidden>
-      <div class="pasar-head">
-        <div>
+    <section id="view-cv" class="view" data-view="cv" aria-labelledby="cv-title" hidden>
+      <header class="pasar-head">
+        <hgroup>
           <p class="eyebrow">Dibaca di perangkatmu, tidak dikirim ke mana pun</p>
-          <h1 class="display">Cocokkan dengan <span class="nowrap">CV-mu</span></h1>
+          <h1 class="display" id="cv-title">Cocokkan dengan <span class="nowrap">CV-mu</span></h1>
           <p class="hero-sub">Upload CV dalam bentuk PDF atau Word. Tracking Loker membaca jurusan, pengalaman, organisasi, lomba, dan keahlianmu, lalu mencarikan lowongan yang paling sesuai dengan kualifikasimu.</p>
-        </div>
-      </div>
+        </hgroup>
+      </header>
       <input type="file" id="cv-file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" hidden>
       <div id="cv-root"></div>
     </section>
 
     <!-- ================= Pasar ================= -->
-    <section id="view-pasar" class="view" data-view="pasar" hidden>
-      <div class="pasar-head">
-        <div>
+    <section id="view-pasar" class="view" data-view="pasar" aria-labelledby="pasar-title" hidden>
+      <header class="pasar-head">
+        <hgroup>
           <p class="eyebrow">Analisis pasar kerja</p>
           <h1 class="display" id="pasar-title">Seluruh Indonesia</h1>
           <p class="hero-sub" id="pasar-scope"></p>
-        </div>
+        </hgroup>
         <div class="pasar-tools">
           <div class="select"><select id="pasar-prov" aria-label="Wilayah analisis"></select><svg><use href="#i-chev"/></svg></div>
         </div>
-      </div>
+      </header>
       <div class="bento" id="bento"></div>
     </section>
 
     <!-- ================= Disimpan ================= -->
-    <section id="view-simpan" class="view" data-view="simpan" hidden>
-      <div class="pasar-head">
-        <div>
+    <section id="view-simpan" class="view" data-view="simpan" aria-labelledby="simpan-title" hidden>
+      <header class="pasar-head">
+        <hgroup>
           <p class="eyebrow">Tersimpan di perangkat ini</p>
-          <h1 class="display">Lowongan disimpan</h1>
-        </div>
-      </div>
-      <div class="job-list" id="saved-list"></div>
+          <h1 class="display" id="simpan-title">Lowongan disimpan</h1>
+        </hgroup>
+      </header>
+      <h2 class="sr-only">Daftar lowongan yang disimpan</h2>
+      <ul class="job-list" id="saved-list" role="list"></ul>
     </section>
   </main>
 
@@ -222,10 +223,10 @@
   </footer>
 
   <div class="scrim" id="scrim" hidden></div>
-  <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="d-title" tabindex="-1" hidden>
-    <div class="drawer-inner" id="drawer-inner"></div>
+  <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Detail lowongan" aria-labelledby="d-title" tabindex="-1" hidden>
+    <article class="drawer-inner" id="drawer-inner"></article>
   </aside>
-  <div class="toast" id="toast" role="status" hidden></div>
+  <p class="toast" id="toast" role="status" hidden></p>
 
   <script type="module" src="app.js"></script>
 </body>
