@@ -259,7 +259,7 @@ def salary(row: dict) -> tuple[int, int]:
 
 def job_type(name) -> str:
     name = clean(name)
-    return TYPE_NAMES.get(name.lower(), name)
+    return TYPE_NAMES.get(name.lower()) or karier.norm_type(name)
 
 
 def from_karirhub(row: dict, refs: dict) -> dict | None:
@@ -441,6 +441,7 @@ def from_board(kind: str, company: dict, raw: dict, provinces: dict) -> dict | N
         posted = iso_epoch(raw.get("first_published") or raw.get("updated_at"))
         work, function = "", ""
         ident = raw.get("id")
+        desc = karier.html_to_text(raw.get("content") or "")
     elif kind == "lever":
         cats = raw.get("categories") or {}
         loc = ", ".join(filter(None, [cats.get("location"), *(cats.get("allLocations") or [])]))
@@ -448,6 +449,9 @@ def from_board(kind: str, company: dict, raw: dict, provinces: dict) -> dict | N
         posted = iso_epoch(raw.get("createdAt"))
         work, function = cats.get("commitment") or "", cats.get("team") or ""
         ident = raw.get("id")
+        lists = "".join(f"<h3>{x.get('text') or ''}</h3><ul>{x.get('content') or ''}</ul>" for x in raw.get("lists") or [])
+        desc = karier.html_to_text((raw.get("description") or raw.get("descriptionPlain") or "") + lists
+                                   + (raw.get("additional") or raw.get("additionalPlain") or ""))
     elif kind == "ashby":
         loc = ", ".join(filter(None, [raw.get("location"), *[
             (s.get("location") if isinstance(s, dict) else str(s)) for s in raw.get("secondaryLocations") or []
@@ -456,6 +460,7 @@ def from_board(kind: str, company: dict, raw: dict, provinces: dict) -> dict | N
         posted = iso_epoch(raw.get("publishedAt"))
         work, function = raw.get("employmentType") or "", raw.get("department") or ""
         ident = raw.get("id")
+        desc = karier.html_to_text(raw.get("descriptionHtml") or raw.get("descriptionPlain") or "")
     else:
         return None
     place = indonesia_place(loc, provinces)
@@ -480,13 +485,14 @@ def from_board(kind: str, company: dict, raw: dict, provinces: dict) -> dict | N
         "expires": 0,
         "via": f"{kind}:{company['slug']}",
         "link": clean(link),
+        "desc": desc,
     }
 
 
 def fetch_board(company: dict, provinces: dict):
     kind, slug = company.get("ats", "").lower(), company.get("slug", "")
     if kind == "greenhouse":
-        raw = fetch(f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs").get("jobs") or []
+        raw = fetch(f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs", {"content": "true"}).get("jobs") or []
     elif kind == "lever":
         raw = fetch(f"https://api.lever.co/v0/postings/{slug}", {"mode": "json"}) or []
     elif kind == "ashby":
@@ -518,12 +524,52 @@ def load_companies(path: Path) -> list[dict]:
     return out
 
 
+# ---------------------------------------------------------------- deskripsi lowongan perusahaan
+
+DETAIL_DIR = "detail"
+
+
+def shard(job_id: str) -> str:
+    """Nama berkas pecahan deskripsi (00-ff), FNV-1a 32-bit. Rumus yang sama dipakai app.js."""
+    h = 0x811C9DC5
+    for b in job_id.encode("utf-8"):
+        h = ((h ^ b) * 0x01000193) & 0xFFFFFFFF
+    return f"{h & 0xFF:02x}"
+
+
+def read_details(out_dir: Path) -> dict[str, str]:
+    """Semua deskripsi tersimpan: {id lowongan: teks}. Teks kosong berarti sudah dicoba tapi tidak ada."""
+    folder = out_dir / DETAIL_DIR
+    out: dict[str, str] = {}
+    if folder.is_dir():
+        for path in folder.glob("[0-9a-f][0-9a-f].json"):
+            data = read_json(path, {})
+            out.update({k: (v.get("d", "") if isinstance(v, dict) else str(v)) for k, v in data.items()})
+    return out
+
+
+def write_details(out_dir: Path, details: dict[str, str], now: datetime) -> None:
+    folder = out_dir / DETAIL_DIR
+    folder.mkdir(exist_ok=True)
+    shards: dict[str, dict] = {}
+    for job_id, text in details.items():
+        shards.setdefault(shard(job_id), {})[job_id] = {"d": text}
+    for path in folder.glob("[0-9a-f][0-9a-f].json"):
+        if path.stem not in shards:
+            path.unlink()
+    for name, data in shards.items():
+        write_json(folder / f"{name}.json", dict(sorted(data.items())))
+    # Selalu ada, supaya "git add detail" di workflow tidak gagal walau belum ada deskripsi.
+    write_json(folder / "_info.json", {"updated": now.isoformat(timespec="seconds"),
+                                       "jobs": sum(1 for t in details.values() if t)})
+
+
 def company_via(company: dict) -> str:
     kind = company["ats"].lower()
     return f"{kind}:{company['slug']}" if kind in BOARDS else f"{kind}:{karier.source_key(company)}"
 
 
-def fetch_companies(companies: list[dict], refs: dict, prev: dict, now: datetime):
+def fetch_companies(companies: list[dict], refs: dict, prev: dict, now: datetime, described: set | None = None):
     """Tarik semua situs karier perusahaan secara paralel. Mengembalikan (lowongan, sumber_utuh, ringkasan)."""
     from concurrent.futures import ThreadPoolExecutor, wait
 
@@ -536,7 +582,7 @@ def fetch_companies(companies: list[dict], refs: dict, prev: dict, now: datetime
     def one(company):
         if company["ats"].lower() in BOARDS:
             return fetch_board(company, refs["provinces"])
-        return karier.fetch_company(company, refs, by_via.get(company_via(company)), now)
+        return karier.fetch_company(company, refs, by_via.get(company_via(company)), now, described or set())
 
     pool = ThreadPoolExecutor(max_workers=6)
     futures = {pool.submit(one, c): c for c in companies}
@@ -714,8 +760,9 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
         sources.append({"name": "Karirhub Kemnaker", "ok": False, "count": 0, "error": str(err)[:200]})
 
     companies = load_companies(out_dir / "perusahaan.json")
+    stored = read_details(out_dir)
     if companies:
-        jobs, whole, company_sources = fetch_companies(companies, refs, prev, now)
+        jobs, whole, company_sources = fetch_companies(companies, refs, prev, now, set(stored))
         fresh += jobs
         complete |= whole
         sources += company_sources
@@ -737,6 +784,15 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
     }
     write_json(jobs_path, encode(jobs, meta))
     write_json(links_path, {j["id"]: j["link"] for j in jobs if j.get("link")})
+    # Deskripsi lowongan situs perusahaan: yang baru ditarik, atau yang tersimpan dari hari sebelumnya.
+    details = {}
+    for j in jobs:
+        if j["via"] == "karirhub":
+            continue
+        text = j["desc"] if j.get("desc") is not None else stored.get(j["id"])
+        if text is not None:
+            details[j["id"]] = text
+    write_details(out_dir, details, now)
     stats = update_stats(read_json(stats_path, {}), jobs, None if first_run else added,
                          None if first_run else closed, now)
     write_json(stats_path, stats)

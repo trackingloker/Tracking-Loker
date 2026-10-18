@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   decode, filterJobs, sortJobs, countBy, median, salaryBy, salaryText, juta, ribu, ago, dateText, timeText,
   slug, karirhubUrl, initials, htmlToText, filtersFromQuery, filtersToQuery, activeCount, summarize, cityLabel, tidy, typeLabel, findMajor, majorFilter, MAJORS,
-  EMPTY_FILTERS
+  EMPTY_FILTERS, detailShard, yearsFrom
 } from './logic.js';
 
 const NOW = 1791943200; // 14 Okt 2026 06.00 WIB
@@ -235,4 +235,19 @@ test('filter <-> URL', () => {
 test('ringkasan pasar', () => {
   const s = summarize(jobs, NOW);
   assert.deepEqual(s, { total: 4, companies: 3, fresh: 2, salariedPct: 75, medianPay: 5250000, provinces: 3 });
+});
+
+test('pecahan deskripsi sama dengan update.py', () => {
+  // Nilai dari update.shard() di Python untuk id yang sama.
+  assert.equal(detailShard('su-isat-58995944'), 'e5');
+  assert.equal(detailShard('wo-indico-AB12CD'), 'bc');
+  assert.equal(detailShard('le-GoToGroup-1e6eb820'), '67');
+});
+
+test('lama pengalaman dari teks lowongan', () => {
+  assert.equal(yearsFrom('Minimal 3 tahun pengalaman di bidang keuangan'), 3);
+  assert.equal(yearsFrom('At least 5+ years of experience in data'), 5);
+  assert.equal(yearsFrom('2 years of relevant experience'), 2);
+  assert.equal(yearsFrom('Fresh graduate are welcome'), 0);
+  assert.equal(yearsFrom('Menguasai Excel'), null);
 });

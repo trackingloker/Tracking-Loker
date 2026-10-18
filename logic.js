@@ -459,6 +459,22 @@ export function hue(text) {
 }
 
 /** Ubah HTML deskripsi menjadi teks bersih (baris per paragraf/poin). Tanpa DOM. */
+/** Nama berkas pecahan deskripsi (00-ff) untuk satu lowongan: FNV-1a 32-bit, sama dengan update.py. */
+export function detailShard(id) {
+  let h = 0x811c9dc5;
+  for (const b of new TextEncoder().encode(String(id))) h = Math.imul(h ^ b, 0x01000193) >>> 0;
+  return (h & 0xff).toString(16).padStart(2, '0');
+}
+
+/** Lama pengalaman minimal (tahun) yang disebut di teks lowongan, atau null. */
+export function yearsFrom(text) {
+  const t = String(text || '').toLowerCase();
+  const m = t.match(/(?:minimal|minimum|min\.?|at least|sekurang-kurangnya|paling sedikit)\s*(\d{1,2})\s*\+?\s*(?:tahun|years?|yrs?)/)
+    || t.match(/(\d{1,2})\s*\+?\s*(?:tahun|years?|yrs?)\s*(?:of\s+)?(?:pengalaman|experience|relevant experience|working experience)/);
+  if (m) return +m[1];
+  return /fresh ?graduate|lulusan baru|tanpa pengalaman|no experience required/.test(t) ? 0 : null;
+}
+
 export function htmlToText(html) {
   return String(html || '')
     .replace(/<\s*(br|\/p|\/li|\/div|\/h\d)\s*\/?>/gi, '\n')

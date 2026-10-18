@@ -1,7 +1,7 @@
 // Tracking Loker: tampilan. Data dibaca dari jobs.json (ditulis update.py lewat GitHub Actions setiap pagi).
 import {
   decode, filterJobs, sortJobs, countBy, salaryBy, summarize, salaryText, juta, ribu, ago, dateText, timeText,
-  karirhubUrl, initials, hue, htmlToText, filtersFromQuery, filtersToQuery, activeCount, cityLabel, fold,
+  karirhubUrl, initials, hue, htmlToText, filtersFromQuery, filtersToQuery, activeCount, cityLabel, fold, detailShard, yearsFrom,
   EMPTY_FILTERS, MAJORS, findMajor, EDU_CHOICES, EDU_SHORT, EDU_LEVEL, GAJI_CHOICES, WAKTU_CHOICES, SORTS, DIRECT, KARIRHUB_DETAIL_API
 } from './logic.js';
 import {
@@ -107,7 +107,7 @@ async function boot() {
     console.error(err);
     markReady();
     $('#updated').textContent = 'Data gagal dimuat';
-    $('#job-list').innerHTML = `<div class="empty"><b>Data belum bisa dimuat</b><p>Periksa koneksi internet lalu muat ulang halaman.</p><button class="btn dark" type="button" onclick="location.reload()">Muat ulang</button></div>`;
+    $('#job-list').innerHTML = `<li class="empty"><b>Data belum bisa dimuat</b><p>Periksa koneksi internet lalu muat ulang halaman.</p><button class="btn dark" type="button" onclick="location.reload()">Muat ulang</button></li>`;
     return;
   }
   markReady();
@@ -116,8 +116,9 @@ async function boot() {
   renderCheer();
   renderCvPromo();
   if (state.view === 'cv') renderCV();
-  apply(false);
+  // Dibaca sebelum apply(): apply() menulis ulang alamat halaman dan membuang ?id= tautan yang dibagikan.
   const id = new URLSearchParams(location.search).get('id');
+  apply(false);
   if (id) openJob(id);
 }
 
@@ -356,7 +357,7 @@ function renderCheer() {
     <div class="cheer-art" aria-hidden="true"><img src="foto-eksekutif.webp" alt=""></div>
     <hgroup>
       <p class="cheer-eyebrow"><svg aria-hidden="true"><use href="#i-heart"/></svg>Pesan hari ini untuk yang masih berjuang</p>
-      <h2>${esc(m.title)}</h2>
+      <h2>${esc(m.title.replace('{fresh}', ribu(fresh)))}</h2>
       <p>${esc(m.body.replace('{fresh}', ribu(fresh)))}</p>
     </hgroup>
     <button type="button" class="btn cta" data-mood='{"waktu":"1"}'>Lihat ${ribu(fresh)} lowongan baru <span class="cta-dot"><svg><use href="#i-play"/></svg></span></button>`;
@@ -876,7 +877,7 @@ function openJob(id) {
     <p class="d-pay${pay ? '' : ' none'}"><b>${pay || 'Gaji tidak dicantumkan'}</b>${pay ? '<span>per bulan</span>' : ''}</p>
     <dl class="facts">${facts.map(([k, v]) => `<div class="fact"><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
     ${state.cv ? '<section class="cv-compare" id="d-cv" aria-label="Dibanding CV-mu"></section>' : ''}
-    <section class="d-section" id="d-detail" aria-label="Deskripsi lowongan">${job.via === 'karirhub' ? '<div class="d-load" aria-hidden="true"></div>' : `<p class="d-text">Deskripsi lengkap dan formulir lamaran ada di situs karier ${esc(job.company)}.</p>`}</section>
+    <section class="d-section" id="d-detail" aria-label="Deskripsi lowongan"><div class="d-load" aria-hidden="true"></div></section>
     ${closed ? '' : `<p class="cheer-note">${icon('heart')}<span>Semoga lolos! Baca lagi kualifikasinya dan sesuaikan CV-mu sebelum melamar.</span></p>`}
     <p class="warn-box" role="note">Lowongan resmi tidak memungut biaya apa pun. Waspadai permintaan transfer uang, biaya pelatihan, atau seragam.</p>
     <footer class="d-actions">
@@ -888,9 +889,37 @@ function openJob(id) {
   document.body.classList.add('lock');
   $('#drawer').focus({ preventScroll: true });
 
-  renderCompare(job, job.via === 'karirhub' ? null : {});
+  renderCompare(job, null);
   applyLink(job);
-  if (job.via === 'karirhub') loadDetail(job);
+  if (job.via === 'karirhub') loadDetail(job); else loadCompanyDetail(job);
+}
+
+// Deskripsi lowongan situs perusahaan disimpan saat penarikan harian di detail/xx.json (dipecah per id).
+const detailFiles = new Map();
+async function loadCompanyDetail(job) {
+  const box = $('#d-detail');
+  const name = detailShard(job.id);
+  if (!detailFiles.has(name)) detailFiles.set(name, getJSON(`detail/${name}.json`).catch(() => ({})));
+  const data = await detailFiles.get(name);
+  if (state.openId !== job.id || !box.isConnected) return;
+  const text = data[job.id] && data[job.id].d;
+  if (!text) {
+    box.innerHTML = `<p class="d-text">Deskripsi lengkap dan formulir lamaran ada di situs karier ${esc(job.company)}.</p>`;
+    renderCompare(job, {});
+    return;
+  }
+  box.innerHTML = `<h3>Deskripsi pekerjaan</h3><p class="d-text clamp" id="d-desc">${esc(text)}</p>`;
+  clampDesc();
+  renderCompare(job, { minYears: yearsFrom(text), text, skills: [] });
+}
+
+function clampDesc() {
+  const descEl = $('#d-desc');
+  if (descEl && descEl.scrollHeight > 280) {
+    descEl.insertAdjacentHTML('afterend', '<button class="linkish" type="button" data-expand>Baca selengkapnya</button>');
+  } else if (descEl) {
+    descEl.classList.remove('clamp');
+  }
 }
 
 async function applyLink(job) {
@@ -939,12 +968,7 @@ async function loadDetail(job) {
       req.length && `<h3 style="margin-top:8px">Syarat lain</h3><ul class="d-text d-list">${req.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>`,
       addr && `<h3 style="margin-top:8px">Alamat</h3><address class="d-text">${esc(addr)}</address>`
     ].filter(Boolean).join('') || '<p class="d-text">Perusahaan tidak menulis deskripsi tambahan.</p>';
-    const descEl = $('#d-desc');
-    if (descEl && descEl.scrollHeight > 280) {
-      descEl.insertAdjacentHTML('afterend', '<button class="linkish" type="button" data-expand>Baca selengkapnya</button>');
-    } else if (descEl) {
-      descEl.classList.remove('clamp');
-    }
+    clampDesc();
     if (d.platform_link && !(await (state.links || Promise.resolve({})))[job.id]) {
       setApply(job, d.platform_link);
     }
@@ -1017,6 +1041,7 @@ function storeCV() {
 const TERM_CASE = { pph: 'PPh', 'e-faktur': 'e-Faktur', 'node.js': 'Node.js', nodejs: 'Node.js', 'react.js': 'React.js', 'vue.js': 'Vue.js', 'next.js': 'Next.js',
   javascript: 'JavaScript', typescript: 'TypeScript', mikrotik: 'MikroTik', postgresql: 'PostgreSQL', mongodb: 'MongoDB', github: 'GitHub', gitlab: 'GitLab',
   linkedin: 'LinkedIn', tiktok: 'TikTok', youtube: 'YouTube', capcut: 'CapCut', coreldraw: 'CorelDRAW', autocad: 'AutoCAD', sketchup: 'SketchUp', 'power bi': 'Power BI',
+  'sap fico': 'SAP FICO', 'sap mm': 'SAP MM', 'sap sd': 'SAP SD', 'sap hana': 'SAP HANA', sap: 'SAP', 's/4hana': 'S/4HANA',
   archived: 'Kearsipan', archiving: 'Kearsipan', 'pengarsipan': 'Kearsipan' };
 // Nama alat/produk ditulis dengan huruf besar di awal setiap kata ("Google Analytics", "Meta Ads").
 const BRANDS = new Set(['microsoft excel', 'microsoft word', 'microsoft office', 'google sheets', 'google workspace', 'google analytics', 'google ads',

@@ -199,7 +199,7 @@ class TestHalamanHtml(Base):
         jobs, raw = karier.fetch_company(company, REFS, now=NOW)
         self.assertEqual(sorted(j["title"] for j in jobs), ["Customer Service", "Teller"])
         teller = next(j for j in jobs if j["title"] == "Teller")
-        self.assertEqual((teller["city"], teller["smin"], teller["smax"], teller["type"]), ("Kota Surabaya", 5000000, 7000000, "Full Time"))
+        self.assertEqual((teller["city"], teller["smin"], teller["smax"], teller["type"]), ("Kota Surabaya", 5000000, 7000000, "Full time"))
         self.assertGreater(teller["expires"], teller["posted"])
         # Hari berikutnya: detail yang sudah dikenal tidak diambil ulang.
         known = {j["link"]: j for j in jobs}
@@ -207,6 +207,56 @@ class TestHalamanHtml(Base):
         again, _ = karier.fetch_company(company, REFS, known, now=NOW)
         self.assertEqual(len(again), 2)
         self.assertEqual([c[0] for c in http.calls], ["https://bank.co.id/karir"])
+
+
+class TestDeskripsi(Base):
+    def test_teks_rapi(self):
+        html = ('<p><strong>Tanggung jawab:</strong></p><ul><li><p>Membuat laporan</p></li><li>Analisis data</li></ul>'
+                '<p>Kualifikasi &amp; syarat</p>')
+        self.assertEqual(karier.html_to_text(html), "Tanggung jawab:\n\n\u2022 Membuat laporan\n\u2022 Analisis data\n\nKualifikasi & syarat")
+        self.assertEqual(karier.html_to_text("&lt;p&gt;Halo&lt;/p&gt;"), "Halo")
+        long = karier.html_to_text("".join(f"<p>Baris ke-{i} tentang tugas dan tanggung jawab.</p>" for i in range(400)))
+        self.assertLessEqual(len(long), karier.DESC_LIMIT + 2)
+        self.assertTrue(long.endswith("\u2026"))
+
+    def test_workday_deskripsi_lokasi_tipe(self):
+        def listing(url, body):
+            return {"total": 1, "facets": [], "jobPostings": [
+                {"title": "Medical Representative", "externalPath": "/job/Makassar/Medical-Rep_R1", "locationsText": "2 Locations",
+                 "postedOn": "Posted Today", "bulletFields": ["R1"]}]}
+        self.use({
+            "/wday/cxs/kalbe/External/jobs": listing,
+            "/wday/cxs/kalbe/External/job/Makassar/Medical-Rep_R1": lambda u, b: {"jobPostingInfo": {
+                "jobDescription": "<p>Kunjungi dokter.</p><ul><li>S1 Farmasi</li></ul>", "location": "Makassar",
+                "timeType": "Full time"}},
+        })
+        jobs, _ = karier.fetch_company({"nama": "Kalbe", "ats": "workday", "kode": "KLBF",
+                                        "url": "https://kalbe.wd102.myworkdayjobs.com/External"}, REFS, now=NOW)
+        self.assertEqual(jobs[0]["desc"], "Kunjungi dokter.\n\n\u2022 S1 Farmasi")
+        self.assertEqual((jobs[0]["city"], jobs[0]["type"]), ("Kota Makassar", "Full time"))
+
+    def test_successfactors_lokasi_dari_detail_dan_tidak_diulang(self):
+        rows = ('<tr class="data-row"><td><a class="jobTitle-link" href="/job/AVP-Finance/58995944/">AVP Finance</a></td>'
+                '<td><span class="jobLocation"></span></td></tr>')
+        detail = ('<span itemprop="addressLocality">Jakarta</span><span class="jobdescription"><p>Memimpin tim.</p>'
+                  '<ul><li>Minimal 8 tahun</li></ul></span><a class="applylink" href="#">Apply</a>')
+        http = self.use({
+            "careers.ioh.co.id/search/": lambda u, b: ("<table>" + rows + "</table>", "text/html"),
+            "careers.ioh.co.id/job/AVP-Finance/58995944/": lambda u, b: (detail, "text/html"),
+        })
+        company = {"nama": "PT Indosat Tbk", "ats": "successfactors", "kode": "ISAT", "url": "https://careers.ioh.co.id", "lokasi": ""}
+        jobs, _ = karier.fetch_company(company, REFS, now=NOW)
+        self.assertEqual(jobs[0]["desc"], "Memimpin tim.\n\n\u2022 Minimal 8 tahun")
+        self.assertEqual((jobs[0]["city"], jobs[0]["province"]), ("Jakarta", "DKI Jakarta"))
+        # Besok: deskripsi sudah tersimpan, lokasi diambil dari data kemarin, halaman detail tidak dibuka lagi.
+        http.calls.clear()
+        again, _ = karier.fetch_company(company, REFS, {j["link"]: j for j in jobs}, NOW, {j["id"] for j in jobs})
+        self.assertEqual((again[0]["city"], "desc" in again[0]), ("Jakarta", False))
+        self.assertEqual(len(http.calls), 1)
+
+    def test_tipe_disamakan(self):
+        self.assertEqual([karier.norm_type(t) for t in ["Permanent", "Direct Contract", "FULL_TIME", "Internship", "Harian"]],
+                         ["Full time", "Kontrak", "Full time", "Magang", "Harian"])
 
 
 class TestHalamanDaftar(Base):
@@ -261,7 +311,7 @@ class TestHalamanDaftar(Base):
         self.assertEqual(next(j for j in jobs if j["title"] == "Community Officer")["city"], "Kota Kupang")
         known = {j["link"]: j for j in jobs}
         http.calls.clear()
-        again, _ = karier.fetch_company(company, REFS, known, now=NOW)
+        again, _ = karier.fetch_company(company, REFS, known, now=NOW, described={j["id"] for j in jobs})
         self.assertEqual(len(again), 2)
         self.assertEqual(len(http.calls), 1)  # hanya halaman daftar
         self.assertEqual({j["posted"] for j in again}, {j["posted"] for j in jobs})  # tanggal tidak "baru" lagi
@@ -327,6 +377,29 @@ class TestCek(Base):
 
 
 class TestPenarikanHarian(Base):
+    def test_deskripsi_tersimpan_per_pecahan(self):
+        import test_update
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "perusahaan.json").write_text(json.dumps([{"nama": "INDICO", "ats": "workable", "slug": "indico"}]))
+        jobs_api = [{"title": "Data Engineer", "shortcode": "Z9", "description": "<p>Bangun pipeline data.</p>",
+                     "locations": [{"city": "Bandung", "country": "Indonesia"}]}]
+        self.use({"widget/accounts/indico": lambda u, b: {"jobs": jobs_api}})
+        old_fetch, old_sleep = update.fetch, update.sleep
+        update.fetch = test_update.FakeApi([test_update.vacancy(i) for i in range(3)])
+        update.sleep = lambda s: None
+        try:
+            update.run(tmp, now=test_update.NOW)
+            name = update.shard("wo-indico-Z9")
+            self.assertEqual(json.loads((tmp / "detail" / f"{name}.json").read_text()), {"wo-indico-Z9": {"d": "Bangun pipeline data."}})
+            self.assertEqual(json.loads((tmp / "detail" / "_info.json").read_text())["jobs"], 1)
+            self.assertNotIn("01a1-0001", update.read_details(tmp))  # lowongan Karirhub tidak disimpan di sini
+            jobs_api.clear()  # lowongan ditutup: deskripsinya ikut dibuang
+            update.run(tmp, now=test_update.NOW)
+            self.assertFalse((tmp / "detail" / f"{name}.json").exists())
+            self.assertTrue((tmp / "detail" / "_info.json").exists())
+        finally:
+            update.fetch, update.sleep = old_fetch, old_sleep
+
     def test_perusahaan_ikut_tertarik_dan_gagal_terisolasi(self):
         import test_update
         tmp = Path(tempfile.mkdtemp())

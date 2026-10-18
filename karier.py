@@ -39,6 +39,9 @@ UA = "Mozilla/5.0 (compatible; TrackingLoker/1.0; +https://github.com/trackinglo
 MAX_BYTES = 4_000_000
 DEFAULT_CAP = 300          # batas lowongan per perusahaan per hari
 DETAIL_CAP = 40            # halaman detail baru (jsonld) per perusahaan per hari
+DESC_CAP = 120            # deskripsi baru yang diambil per perusahaan per hari (sisanya besok)
+DESC_BUDGET_SEC = 6 * 60  # batas waktu mengambil deskripsi per perusahaan
+DESC_LIMIT = 8000         # panjang maksimal deskripsi yang disimpan
 SUPPORTED = {"workday", "smartrecruiters", "workable", "successfactors", "oracle", "radancy", "jsonld", "html"}
 
 
@@ -165,10 +168,60 @@ def epoch(value, now: datetime | None = None, fmt: str = "") -> int:
     return 0
 
 
-def raw_job(ident, title, link, loc="", posted=0, kind="", function="", expires=0, edu="", smin=0, smax=0) -> dict:
+def raw_job(ident, title, link, loc="", posted=0, kind="", function="", expires=0, edu="", smin=0, smax=0, desc="") -> dict:
     return {"id": clean(ident), "title": clean(title), "link": clean(link), "loc": clean(loc), "posted": posted or 0,
             "type": clean(kind), "function": clean(function), "expires": expires or 0, "edu": clean(edu),
-            "smin": smin or 0, "smax": smax or 0}
+            "smin": smin or 0, "smax": smax or 0, "desc": desc or ""}
+
+
+def html_to_text(markup, limit: int = DESC_LIMIT) -> str:
+    """HTML deskripsi lowongan menjadi teks rapi: paragraf dipisah baris kosong, butir daftar diberi •."""
+    if not markup:
+        return ""
+    text = str(markup)
+    if "&lt;" in text and "<" not in text.replace("&lt;", ""):
+        text = html.unescape(text)  # Greenhouse mengirim HTML yang di-escape
+    text = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", text, flags=re.S | re.I)
+    text = re.sub(r"<li\b[^>]*>", "\n\u2022 ", text, flags=re.I)
+    text = re.sub(r"<br\s*/?>", "\n", text, flags=re.I)
+    text = re.sub(r"</(p|div|ul|ol|h[1-6]|tr|section|li|table)>|<h[1-6]\b[^>]*>|<p\b[^>]*>", "\n", text, flags=re.I)
+    text = html.unescape(re.sub(r"<[^>]+>", "", text)).replace("\xa0", " ")
+    out: list[str] = []
+    bullet = False
+    for line in text.split("\n"):
+        line = re.sub(r"[ \t]+", " ", line).strip()
+        if line == "\u2022":
+            bullet = True
+            continue
+        if not line:
+            if out and out[-1]:
+                out.append("")
+            continue
+        if bullet and not line.startswith("\u2022"):
+            line = "\u2022 " + line
+        bullet = False
+        if out and out[-1] == "" and line.startswith("\u2022") and len(out) > 1 and out[-2].startswith("\u2022"):
+            out.pop()  # butir berurutan tidak dipisah baris kosong
+        out.append(line)
+    text = "\n".join(out).strip()
+    if len(text) > limit:
+        text = text[:limit].rsplit("\n", 1)[0].rstrip() + "\n\u2026"
+    return text
+
+
+TYPE_NAMES = {
+    "full time": "Full time", "full-time": "Full time", "fulltime": "Full time", "permanent": "Full time",
+    "regular": "Full time", "pkwtt": "Full time", "tetap": "Full time", "karyawan tetap": "Full time",
+    "contract": "Kontrak", "kontrak": "Kontrak", "direct contract": "Kontrak", "fixed term": "Kontrak",
+    "fixed-term": "Kontrak", "temporary": "Kontrak", "pkwt": "Kontrak", "contractor": "Kontrak",
+    "internship": "Magang", "intern": "Magang", "magang": "Magang", "trainee": "Magang",
+    "part time": "Part time", "part-time": "Part time", "parttime": "Part time", "freelance": "Freelance",
+}
+
+
+def norm_type(name) -> str:
+    name = clean(name)
+    return TYPE_NAMES.get(name.lower().replace("_", " "), name)
 
 
 def cap_of(company: dict) -> int:
@@ -381,7 +434,7 @@ def smartrecruiters(company: dict, now=None) -> list[dict]:
 
 def workable(company: dict, now=None) -> list[dict]:
     slug = company["slug"]
-    data = get_json(f"https://apply.workable.com/api/v1/widget/accounts/{slug}")
+    data = get_json(f"https://apply.workable.com/api/v1/widget/accounts/{slug}", {"details": "true"})
     out = []
     for j in data.get("jobs") or []:
         locs = j.get("locations") or [{"city": j.get("city"), "region": j.get("state"), "country": j.get("country")}]
@@ -389,7 +442,8 @@ def workable(company: dict, now=None) -> list[dict]:
         code = j.get("shortcode") or j.get("code") or j.get("id")
         out.append(raw_job(code, j.get("title"), j.get("url") or f"https://apply.workable.com/{slug}/j/{code}/", text,
                            epoch(j.get("published_on") or j.get("created_at")), j.get("employment_type", ""),
-                           j.get("function") or j.get("department") or "", edu=j.get("education", "")))
+                           j.get("function") or j.get("department") or "", edu=j.get("education", ""),
+                           desc=html_to_text("".join(j.get(k) or "" for k in ("description", "requirements", "benefits")))))
     return out[:cap_of(company)]
 
 
@@ -585,7 +639,8 @@ def from_jsonld(node: dict, link: str) -> dict:
     ident = ident.get("value") if isinstance(ident, dict) else ident
     return raw_job(ident or link, node.get("title"), node.get("url") or link, "; ".join(parts),
                    epoch(node.get("datePosted")), str(kind).replace("_", " ").title(),
-                   node.get("occupationalCategory") or "", epoch(node.get("validThrough")), str(edu), lo, hi)
+                   node.get("occupationalCategory") or "", epoch(node.get("validThrough")), str(edu), lo, hi,
+                   desc=html_to_text(node.get("description") or ""))
 
 
 def job_links(page: str, base: str, pattern: str) -> list[str]:
@@ -758,6 +813,9 @@ def html_list(company: dict, now=None, known: dict | None = None) -> list[dict]:
                     if nodes:
                         job = {**from_jsonld(nodes[0], url), "id": job["id"], "link": job["link"]}
                     else:
+                        og = re.search(r'<meta[^>]+(?:property|name)=["\'](?:og:)?description["\'][^>]+content=["\']([^"\']{120,})',
+                                       detail, re.I)
+                        job["desc"] = html_to_text(og.group(1)) if og else ""
                         m = (re.search(r"<h1[^>]*>(.*?)</h1>", detail, re.S | re.I)
                              or re.search(r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)', detail, re.I)
                              or re.search(r"<title[^>]*>(.*?)</title>", detail, re.S | re.I))
@@ -783,20 +841,78 @@ ADAPTERS = {
 WITH_KNOWN = {"jsonld", "html", "successfactors"}
 
 
+def _cut(page: str, start: str, ends: tuple[str, ...], size: int = 60000) -> str:
+    """Potongan HTML dari penanda awal sampai penanda akhir pertama (untuk isi deskripsi di halaman detail)."""
+    m = re.search(start, page, re.I)
+    if not m:
+        return ""
+    begin = page.find(">", m.end())  # mulai sesudah tag pembukanya
+    chunk = page[begin + 1:begin + 1 + size]
+    cut = min((i for i in (chunk.find(e) for e in ends) if i > 0), default=len(chunk))
+    tag = chunk.rfind("<", 0, cut)  # mundur ke awal tag yang memuat penanda akhir
+    return chunk[:tag if tag > 0 else cut]
+
+
+def describe(company: dict, r: dict) -> tuple[str, dict]:
+    """Deskripsi lengkap satu lowongan dari sumbernya. Mengembalikan (teks, {'loc':.., 'type':..})."""
+    kind = company["ats"].lower()
+    link = r["link"]
+    extra: dict = {}
+    if kind == "workday":
+        parts = urlsplit(link)
+        tenant = parts.netloc.split(".")[0]
+        info = (get_json(f"https://{parts.netloc}/wday/cxs/{tenant}{parts.path}") or {}).get("jobPostingInfo") or {}
+        extra = {"loc": "; ".join(filter(None, [info.get("location"), *(info.get("additionalLocations") or [])])),
+                 "type": info.get("timeType") or ""}
+        return html_to_text(info.get("jobDescription")), extra
+    if kind == "smartrecruiters":
+        data = get_json(f"https://api.smartrecruiters.com/v1/companies/{company['slug']}/postings/{r['id']}")
+        sections = ((data.get("jobAd") or {}).get("sections") or {})
+        parts = []
+        for key in ("companyDescription", "jobDescription", "qualifications", "additionalInformation"):
+            sec = sections.get(key) or {}
+            if sec.get("text"):
+                parts.append(f"<h3>{sec.get('title') or ''}</h3>{sec['text']}")
+        return html_to_text("".join(parts)), extra
+    page, _ = get_text(link)
+    nodes = jobpostings(page)
+    if nodes and nodes[0].get("description"):
+        return html_to_text(nodes[0]["description"]), extra
+    if kind == "successfactors":
+        where = re.search(r'itemprop=["\']addressLocality["\'][^>]*>(.*?)<', page, re.S) \
+            or re.search(r'class=["\'][^"\']*jobGeoLocation[^"\']*["\'][^>]*>(.*?)<', page, re.S)
+        if where:
+            extra["loc"] = strip_tags(where.group(1))
+        body = _cut(page, r'class=["\']jobdescription["\']|itemprop=["\']description["\']',
+                    ('class="applylink', "class='applylink", 'id="similar', 'class="social', "<footer", "jobdescription-footer"))
+        return html_to_text(body), extra
+    if kind == "radancy":
+        body = _cut(page, r'class=["\'][^"\']*ats-description', ('class="job-apply', "<footer", 'class="job-description__footer'))
+        return html_to_text(body), extra
+    og = re.search(r'<meta[^>]+(?:property|name)=["\'](?:og:)?description["\'][^>]+content=["\']([^"\']{120,})', page, re.I)
+    return (html_to_text(og.group(1)) if og else ""), extra
+
+
 def source_key(company: dict) -> str:
     """Kunci sumber yang stabil: dipakai di id lowongan dan penanda 'via'."""
     return company.get("slug") or (company.get("kode") or "").lower() or re.sub(r"[^a-z0-9]+", "-", company["nama"].lower()).strip("-")
 
 
-def fetch_company(company: dict, refs: dict, known: dict | None = None, now: datetime | None = None):
-    """Lowongan berlokasi di Indonesia dari satu perusahaan. Mengembalikan (lowongan, jumlah_mentah)."""
+def fetch_company(company: dict, refs: dict, known: dict | None = None, now: datetime | None = None,
+                  described: set | None = None):
+    """Lowongan berlokasi di Indonesia dari satu perusahaan. Mengembalikan (lowongan, jumlah_mentah).
+
+    known: {tautan: lowongan_kemarin}. described: id lowongan yang deskripsinya sudah tersimpan, jadi tidak
+    diambil ulang. Deskripsi baru ditaruh di kunci "desc" setiap lowongan.
+    """
     kind = company["ats"].lower()
     adapter = ADAPTERS[kind]
     known = known or {}
+    described = described if described is not None else set()
     raw = adapter(company, now, known) if kind in WITH_KNOWN else adapter(company, now)
     key = source_key(company)
     name = clean(company.get("nama"))
-    jobs = []
+    jobs, pairs = [], []
     for r in raw:
         if r.get("_keep"):
             job = {k: v for k, v in r.items() if k != "_keep"}
@@ -805,6 +921,9 @@ def fetch_company(company: dict, refs: dict, known: dict | None = None, now: dat
         where = place(r["loc"], refs, strict=bool(company.get("global")))
         if where is None or not r["title"] or not r["id"]:
             continue
+        old = known.get(r["link"]) or {}
+        if where == ("", "") and (old.get("city") or old.get("province")):
+            where = (old.get("city", ""), old.get("province", ""))  # lokasi dari halaman detail kemarin
         ident = re.sub(r"[^A-Za-z0-9_-]+", "", r["id"])[-40:] or hashlib.md5(r["link"].encode()).hexdigest()[:12]
         jobs.append({
             "id": f"{kind[:2]}-{key}-{ident}",
@@ -816,7 +935,7 @@ def fetch_company(company: dict, refs: dict, known: dict | None = None, now: dat
             "platform": f"Karier {clean(company.get('label') or name)}",
             "function": r["function"],
             "industry": clean(company.get("industri") or ""),
-            "type": r["type"],
+            "type": norm_type(r["type"]) or old.get("type", ""),
             "edu": "",
             "smin": r["smin"],
             "smax": r["smax"],
@@ -826,6 +945,28 @@ def fetch_company(company: dict, refs: dict, known: dict | None = None, now: dat
             "via": f"{kind}:{key}",
             "link": r["link"],
         })
+        pairs.append((jobs[-1], r))
+    # Deskripsi lengkap: sebagian platform sudah mengirimnya di daftar, sisanya dari halaman/API detail.
+    started, fetched = time.monotonic(), 0
+    for job, r in pairs:
+        if r.get("desc"):
+            job["desc"] = r["desc"]
+            continue
+        if job["id"] in described or fetched >= DESC_CAP or time.monotonic() - started > DESC_BUDGET_SEC:
+            continue
+        fetched += 1
+        try:
+            text, extra = describe(company, r)
+        except Exception:  # noqa: BLE001
+            continue
+        job["desc"] = text  # teks kosong pun dicatat supaya halaman tanpa deskripsi tidak dibuka ulang setiap hari
+        if extra.get("loc") and not (job["city"] or job["province"]):
+            better = place(extra["loc"], refs)
+            if better:
+                job["city"], job["province"] = better
+        if extra.get("type") and not job["type"]:
+            job["type"] = norm_type(extra["type"])
+        sleep(0.2)
     return jobs, len(raw)
 
 

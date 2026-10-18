@@ -10,7 +10,10 @@
    "https://karir.bca.co.id/",
    "https://karir.bca.co.id/karir",
    "https://karir.bca.co.id/karir?audience=experienced"
-  ]
+  ],
+  "ats": "html",
+  "url": "https://karir.bca.co.id/candidate/id/career",
+  "pola": "karir\\.bca\\.co\\.id/candidate/id/career/[a-z0-9-]+$"
  },
  {
   "kode": "BBRI",
@@ -285,9 +288,11 @@
   "industri": "Telekomunikasi",
   "web": "https://www.xlsmart.co.id",
   "situs": [
-   "https://www.xlsmart.co.id/karir",
-   "https://www.xlaxiata.co.id/id/karir"
-  ]
+   "https://careers.xlsmart.co.id/"
+  ],
+  "ats": "successfactors",
+  "url": "https://careers.xlsmart.co.id",
+  "lokasi": ""
  },
  {
   "kode": "TOWR",
@@ -485,6 +490,13 @@
   "web": "https://www.astra-agro.co.id",
   "situs": [
    "https://www.astra-agro.co.id/id/lowongan-pekerjaan/"
+  ],
+  "coba": [
+   {
+    "ats": "html",
+    "url": "https://www.astra-agro.co.id/id/lowongan-pekerjaan/",
+    "pola": "career\\.astra\\.co\\.id/lowongan/lowongan-detail-page/\\d+"
+   }
   ]
  },
  {
@@ -1107,7 +1119,8 @@
    "https://www.japfacomfeed.co.id/id/karir"
   ],
   "ats": "workday",
-  "url": "https://japfa.wd102.myworkdayjobs.com/External"
+  "url": "https://japfa.wd102.myworkdayjobs.com/External",
+  "maks": 800
  },
  {
   "kode": "AVIA",
