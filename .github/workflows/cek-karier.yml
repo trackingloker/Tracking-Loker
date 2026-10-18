@@ -1,0 +1,46 @@
+name: Cek situs karier
+
+# Dijalankan manual dari tab Actions. Memeriksa situs karier semua perusahaan di perusahaan.json,
+# lalu menyimpan hasilnya di cek-karier.json. Data lowongan tidak diubah.
+on:
+  workflow_dispatch:
+    inputs:
+      hanya:
+        description: "Kode emiten tertentu, pisahkan dengan koma (kosongkan untuk memeriksa semua)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tarik-lowongan
+  cancel-in-progress: false
+
+jobs:
+  cek:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Uji penarik data
+        run: python3 -m unittest -q test_update
+
+      - name: Cek situs karier
+        env:
+          HANYA: ${{ inputs.hanya }}
+        run: python3 update.py --cek --hanya "$HANYA"
+
+      - name: Simpan hasil cek
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cek-karier.json
+          if git diff --cached --quiet; then
+            echo "Tidak ada perubahan."
+            exit 0
+          fi
+          git commit -m "Cek situs karier $(TZ=Asia/Jakarta date +'%d-%m-%Y %H.%M')"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push
