@@ -4,7 +4,7 @@
 
 # Tracking Loker
 
-**Semua lowongan kerja di Indonesia dalam satu layar, diperbarui sendiri setiap pagi.**
+**Semua lowongan kerja di Indonesia dalam satu layar, diperbarui sendiri setiap pagi dan malam.**
 
 [**Buka Tracking Loker →**](https://trackingloker.github.io/Tracking-Loker/)
 
@@ -12,13 +12,13 @@
 
 ![Halaman lowongan Tracking Loker](layar-lowongan.png)
 
-Tracking Loker mengumpulkan lowongan kerja dari **Karirhub Kemnaker**, bursa kerja resmi Kementerian Ketenagakerjaan, dan dari **situs karier perusahaan**. Setiap pagi pukul 06.00 WIB, hampir 20 ribu lowongan dari lebih dari 6 ribu perusahaan di 38 provinsi ditarik ulang: lowongan baru masuk, lowongan yang sudah ditutup hilang, dan angka pasar kerjanya ikut berubah.
+Tracking Loker mengumpulkan lowongan kerja dari **Karirhub Kemnaker**, bursa kerja resmi Kementerian Ketenagakerjaan, dan dari **situs karier perusahaan**. Dua kali sehari, pagi dan malam, hampir 20 ribu lowongan dari lebih dari 6 ribu perusahaan di 38 provinsi ditarik ulang: lowongan baru masuk, lowongan yang sudah ditutup hilang, dan angka pasar kerjanya ikut berubah.
 
 Karirhub sendiri sudah menghimpun lowongan dari portal mitranya, seperti Toploker, Glints, HiredToday, Kalibrr, Kitalulus, dan REDY, ditambah lowongan yang diposting perusahaan langsung di Karirhub. Tracking Loker menyajikannya dengan pencarian yang cepat, filter yang benar-benar dipakai pencari kerja, dan gambaran pasar kerja yang bisa dibaca dalam semenit.
 
 ## Kenapa Tracking Loker
 
-**Selalu segar tanpa disentuh.** Tidak ada yang mengetik ulang lowongan. Robot di GitHub Actions menarik data setiap pagi, lalu situs langsung memakai data terbaru.
+**Selalu segar tanpa disentuh.** Tidak ada yang mengetik ulang lowongan. Robot di GitHub Actions menarik data setiap pagi dan malam, lalu situs langsung memakai data terbaru.
 
 **Filter yang jujur soal syarat.** Pilih pendidikanmu, dan yang tampil hanya lowongan yang syaratnya setara atau di bawahnya. Pilih "Gaji ≥ 5 jt", dan yang tampil hanya lowongan yang memang mencantumkan angka itu.
 

@@ -254,6 +254,36 @@ class TestDeskripsi(Base):
         self.assertEqual((again[0]["city"], "desc" in again[0]), ("Jakarta", False))
         self.assertEqual(len(http.calls), 1)
 
+    def test_bagian_halaman_tanpa_format_standar(self):
+        section = ('<h2>Tentang Pekerjaan</h2><p>Program pengembangan calon pemimpin BCA.</p>'
+                   '<h2>Persyaratan</h2><ul><li>S1 semua jurusan</li><li>IPK minimal 3,00</li></ul>'
+                   '<h2>Tahapan Seleksi</h2><p>Tes online, wawancara.</p>')
+        page = ('<html><head><title>x</title></head><body><nav><a>Beranda</a><a>Lokasi</a></nav>'
+                f'<div class="mobile">{section}</div><div class="desktop">{section}</div>'
+                '<p>01 Januari 2025 - 31 Desember 2026</p><h3>Lokasi Tes</h3><p>Jakarta</p>'
+                '<h3>Lokasi Penempatan</h3><p>Seluruh Indonesia</p><h2>Karir Lainnya</h2><p>Teller</p></body></html>')
+        text, extra = karier.text_sections(page)
+        self.assertTrue(text.startswith("Tentang Pekerjaan\n\nProgram pengembangan"))
+        self.assertIn("\u2022 IPK minimal 3,00", text)
+        self.assertEqual(text.count("Tentang Pekerjaan"), 1)  # bagian yang terulang tidak dobel
+        self.assertNotIn("Teller", text)
+        self.assertEqual(extra["loc"], "Seluruh Indonesia")
+        self.assertEqual(extra["expires"], int(datetime(2026, 12, 31, tzinfo=karier.WIB).timestamp()))
+
+    def test_lowongan_pdf_diberi_catatan(self):
+        text, _ = karier.describe({"ats": "html"}, {"link": "https://www.valeindonesia.com/documents/d/guest/20261009_x", "id": "x"})
+        self.assertEqual(text, karier.PDF_NOTE)
+
+    def test_logo_resmi(self):
+        home = ('<head><link rel="icon" href="/favicon.ico"><link rel="apple-touch-icon" sizes="180x180" href="/apple-icon.png">'
+                '</head><body><img class="site-logo" src="/img/logo-bca.svg"></body>')
+        self.use({"www.bca.co.id": lambda u, b: (home, "text/html")})
+        self.assertEqual(karier.find_logo({"web": "https://www.bca.co.id"}), "https://www.bca.co.id/apple-icon.png")
+        self.use({"kecil.co.id": lambda u, b: ('<link rel="icon" href="/favicon.ico">', "text/html")})
+        self.assertEqual(karier.find_logo({"web": "https://kecil.co.id"}), "")  # favicon kecil: pakai inisial saja
+        self.use({"svg.co.id": lambda u, b: ('<link rel="icon" type="image/svg+xml" href="/icon.svg">', "text/html")})
+        self.assertEqual(karier.find_logo({"web": "https://svg.co.id"}), "https://svg.co.id/icon.svg")
+
     def test_tipe_disamakan(self):
         self.assertEqual([karier.norm_type(t) for t in ["Permanent", "Direct Contract", "FULL_TIME", "Internship", "Harian"]],
                          ["Full time", "Kontrak", "Full time", "Magang", "Harian"])
@@ -399,6 +429,50 @@ class TestPenarikanHarian(Base):
             self.assertTrue((tmp / "detail" / "_info.json").exists())
         finally:
             update.fetch, update.sleep = old_fetch, old_sleep
+
+    def test_jadwal_cadangan_hanya_bila_perlu(self):
+        tmp = Path(tempfile.mkdtemp())
+        at = lambda h, d=20: datetime(2026, 10, d, h, 30, tzinfo=karier.WIB)  # noqa: E731
+        (tmp / "jobs.json").write_text(json.dumps({"updated": at(5).isoformat()}))
+        self.assertFalse(update.needs_run(tmp, at(7), "schedule"))       # pagi sudah ada
+        self.assertTrue(update.needs_run(tmp, at(18), "schedule"))       # malam belum
+        self.assertTrue(update.needs_run(tmp, at(7), "workflow_dispatch"))  # manual selalu jalan
+        (tmp / "jobs.json").write_text(json.dumps({"updated": at(19).isoformat()}))
+        self.assertFalse(update.needs_run(tmp, at(20), "schedule"))
+        self.assertFalse(update.needs_run(tmp, at(2, 21), "schedule"))   # lewat tengah malam masih sesi malam
+        self.assertTrue(update.needs_run(tmp, at(5, 21), "schedule"))
+
+    def test_deskripsi_kosong_dicoba_lagi_saat_versi_baru(self):
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "detail").mkdir()
+        stored = {"a": "", "b": "isi"}
+        (tmp / "detail" / "_info.json").write_text(json.dumps({"versi": 1}))
+        self.assertEqual(update.described_ids(tmp, stored), {"b"})
+        (tmp / "detail" / "_info.json").write_text(json.dumps({"versi": update.DESC_VERSION}))
+        self.assertEqual(update.described_ids(tmp, stored), {"a", "b"})
+
+    def test_logo_perusahaan_juga_untuk_lowongan_karirhub(self):
+        import test_update
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "perusahaan.json").write_text(json.dumps([
+            {"nama": "PT Contoh Jaya Tbk", "web": "https://contoh.co.id", "ats": "workable", "slug": "contoh"}]))
+        self.use({
+            "contoh.co.id": lambda u, b: ('<link rel="apple-touch-icon" href="/apple.png">', "text/html"),
+            "widget/accounts/contoh": lambda u, b: {"jobs": [{"title": "Analis", "shortcode": "A1",
+                                                              "locations": [{"city": "Jakarta", "country": "Indonesia"}]}]},
+        })
+        old_fetch, old_sleep = update.fetch, update.sleep
+        update.fetch = test_update.FakeApi([test_update.vacancy(1, company_logo_uri=None)])
+        update.sleep = lambda s: None
+        try:
+            update.run(tmp, now=test_update.NOW)
+        finally:
+            update.fetch, update.sleep = old_fetch, old_sleep
+        data = json.loads((tmp / "jobs.json").read_text())
+        logos = dict(zip(data["lists"]["company"], data["lists"]["logo"]))
+        self.assertEqual(logos["PT Contoh Jaya Tbk"], "https://contoh.co.id/apple.png")
+        self.assertEqual(logos["PT Contoh Jaya"], "https://contoh.co.id/apple.png")  # lowongan Karirhub perusahaan yang sama
+        self.assertTrue((tmp / "detail" / "_logo.json").exists())
 
     def test_perusahaan_ikut_tertarik_dan_gagal_terisolasi(self):
         import test_update

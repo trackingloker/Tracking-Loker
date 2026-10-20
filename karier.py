@@ -853,6 +853,58 @@ def _cut(page: str, start: str, ends: tuple[str, ...], size: int = 60000) -> str
     return chunk[:tag if tag > 0 else cut]
 
 
+SEC_START = re.compile(
+    r"^(tentang (pekerjaan|posisi|peran|lowongan)|deskripsi( pekerjaan| posisi| lowongan| tugas)?|job descriptions?|"
+    r"job summary|about (the|this) (role|job|position)|the role|tanggung jawab|responsibilit(y|ies)|key responsibilities|"
+    r"ringkasan (pekerjaan|posisi)|uraian (tugas|pekerjaan)|kualifikasi|persyaratan|syarat|requirements?|qualifications?)\s*:?$",
+    re.I)
+SEC_STOP = re.compile(
+    r"^(karir lainnya|karier lainnya|lowongan lainnya|lowongan (terkait|serupa)|posisi lainnya|other (jobs|vacancies|openings|"
+    r"opportunities)|similar jobs|related jobs|bagikan( lowongan)?|share( this job)?|cari karir|ikuti kami|follow us|"
+    r"hubungi kami|contact us|copyright|\u00a9|lamar sekarang|apply now|daftar sekarang|kembali)\b", re.I)
+LOC_LABEL = re.compile(r"^(lokasi penempatan|lokasi kerja|penempatan|work location|job location|placement)\s*:?\s*(.*)$", re.I)
+PERIOD = re.compile(r"(\d{1,2} [A-Za-z]{3,9}\.? \d{4})\s*[-\u2013\u2014]\s*(\d{1,2} [A-Za-z]{3,9}\.? \d{4})")
+
+
+def text_sections(page: str) -> tuple[str, dict]:
+    """Deskripsi dari halaman lowongan tanpa format standar, berdasarkan judul bagiannya.
+
+    Mulai dari judul seperti "Tentang Pekerjaan" / "Job Description" sampai bagian penutup seperti
+    "Karir Lainnya" / "Bagikan". Juga membaca "Lokasi Penempatan" dan periode pendaftaran "1 Jan 2026 - 31 Des 2026".
+    """
+    body = re.sub(r"<head\b.*?</head>|<(nav|footer)\b[^>]*>.*?</\1>", " ", page, flags=re.S | re.I)
+    text = html_to_text(body, limit=400_000)
+    lines = text.split("\n")
+    extra: dict = {}
+    for i, line in enumerate(lines):
+        m = LOC_LABEL.match(line.strip())
+        if m:
+            value = m.group(2).strip() or next((x.strip() for x in lines[i + 1:i + 4] if x.strip()), "")
+            if 2 < len(value) < 120:
+                extra.setdefault("loc", value)
+    period = PERIOD.search(text)
+    if period:
+        extra["expires"] = epoch(period.group(2))
+    start = next((i for i, line in enumerate(lines) if SEC_START.match(line.strip("\u2022 ").strip())), None)
+    if start is None:
+        return "", extra
+    first = lines[start].strip().lower()
+    out: list[str] = []
+    for line in lines[start:]:
+        bare = line.strip("\u2022 ").strip()
+        if out and (SEC_STOP.match(bare) or bare.lower() == first):
+            break  # bagian penutup, atau isi yang sama terulang (tampilan HP dan desktop)
+        out.append(line)
+    desc = "\n".join(out).strip()
+    if len(desc) > DESC_LIMIT:
+        desc = desc[:DESC_LIMIT].rsplit("\n", 1)[0].rstrip() + "\n\u2026"
+    return (desc if len(desc) > 60 else ""), extra
+
+
+PDF_NOTE = ("Detail lowongan ini berupa dokumen PDF di situs resmi perusahaan. "
+            "Buka lewat tombol lamar untuk membaca deskripsi dan syaratnya.")
+
+
 def describe(company: dict, r: dict) -> tuple[str, dict]:
     """Deskripsi lengkap satu lowongan dari sumbernya. Mengembalikan (teks, {'loc':.., 'type':..})."""
     kind = company["ats"].lower()
@@ -874,10 +926,13 @@ def describe(company: dict, r: dict) -> tuple[str, dict]:
             if sec.get("text"):
                 parts.append(f"<h3>{sec.get('title') or ''}</h3>{sec['text']}")
         return html_to_text("".join(parts)), extra
+    if re.search(r"\.pdf($|\?)|/documents/d/", link, re.I):
+        return PDF_NOTE, extra
     page, _ = get_text(link)
     nodes = jobpostings(page)
     if nodes and nodes[0].get("description"):
         return html_to_text(nodes[0]["description"]), extra
+    text, extra = text_sections(page)
     if kind == "successfactors":
         where = re.search(r'itemprop=["\']addressLocality["\'][^>]*>(.*?)<', page, re.S) \
             or re.search(r'class=["\'][^"\']*jobGeoLocation[^"\']*["\'][^>]*>(.*?)<', page, re.S)
@@ -885,12 +940,59 @@ def describe(company: dict, r: dict) -> tuple[str, dict]:
             extra["loc"] = strip_tags(where.group(1))
         body = _cut(page, r'class=["\']jobdescription["\']|itemprop=["\']description["\']',
                     ('class="applylink', "class='applylink", 'id="similar', 'class="social', "<footer", "jobdescription-footer"))
-        return html_to_text(body), extra
+        return html_to_text(body) or text, extra
     if kind == "radancy":
         body = _cut(page, r'class=["\'][^"\']*ats-description', ('class="job-apply', "<footer", 'class="job-description__footer'))
-        return html_to_text(body), extra
+        return html_to_text(body) or text, extra
+    if text:
+        return text, extra
     og = re.search(r'<meta[^>]+(?:property|name)=["\'](?:og:)?description["\'][^>]+content=["\']([^"\']{120,})', page, re.I)
     return (html_to_text(og.group(1)) if og else ""), extra
+
+
+def find_logo(company: dict) -> str:
+    """Logo resmi perusahaan: dari berandanya, atau dari situs kariernya bila beranda tidak bisa dibuka."""
+    for url in [company.get("web"), *(company.get("situs") or [])[:1]]:
+        if not url:
+            continue
+        try:
+            found = _logo_from(url)
+        except Exception:  # noqa: BLE001
+            continue
+        if found:
+            return found
+    return ""
+
+
+def _logo_from(web: str) -> str:
+    """apple-touch-icon, ikon besar, logo di JSON-LD, atau gambar logo di header halaman."""
+    page, final = get_text(web)
+    found: list[tuple[int, str]] = []
+    for tag in re.findall(r"<link\b[^>]*>", page, re.I):
+        rel = re.search(r'rel=["\']([^"\']+)', tag, re.I)
+        href = re.search(r'href=["\']([^"\']+)', tag, re.I)
+        if not rel or not href or "icon" not in rel.group(1).lower():
+            continue
+        url = urljoin(final, html.unescape(href.group(1).strip()))
+        size = re.search(r'sizes=["\'](\d+)x\d+', tag, re.I)
+        score = int(size.group(1)) if size else (180 if "apple" in rel.group(1).lower() else 0)
+        if url.lower().split("?")[0].endswith(".svg"):
+            score = max(score, 256)
+        if "apple" in rel.group(1).lower():
+            score += 40
+        found.append((score, url))
+    for block in JSONLD.findall(page):
+        m = re.search(r'"logo"\s*:\s*(?:\{[^}]*?"url"\s*:\s*)?"([^"]+)"', block)
+        if m:
+            found.append((150, urljoin(final, m.group(1).replace("\\/", "/"))))
+    for tag in re.findall(r"<img\b[^>]*>", page, re.I):
+        src = re.search(r'src=["\']([^"\']+\.(?:svg|png|webp)(?:\?[^"\']*)?)["\']', tag, re.I)
+        if src and re.search(r'(class|id|alt)=["\'][^"\']*logo|/logo', tag, re.I):
+            found.append((100, urljoin(final, html.unescape(src.group(1)))))
+            break
+    best = max(found, default=(0, ""))
+    # Favicon 16-32 px terlalu buram untuk kotak logo; lebih rapi pakai inisial.
+    return best[1] if best[0] >= 64 else ""
 
 
 def source_key(company: dict) -> str:
@@ -966,7 +1068,11 @@ def fetch_company(company: dict, refs: dict, known: dict | None = None, now: dat
                 job["city"], job["province"] = better
         if extra.get("type") and not job["type"]:
             job["type"] = norm_type(extra["type"])
+        if extra.get("expires") and not job["expires"]:
+            job["expires"] = extra["expires"]
         sleep(0.2)
+    now_ts = (now or datetime.now(WIB)).timestamp()
+    jobs = [j for j in jobs if not j["expires"] or j["expires"] >= now_ts]
     return jobs, len(raw)
 
 

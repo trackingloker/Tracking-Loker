@@ -1,4 +1,4 @@
-// Tracking Loker: tampilan. Data dibaca dari jobs.json (ditulis update.py lewat GitHub Actions setiap pagi).
+// Tracking Loker: tampilan. Data dibaca dari jobs.json (ditulis update.py lewat GitHub Actions pagi dan malam).
 import {
   decode, filterJobs, sortJobs, countBy, salaryBy, summarize, salaryText, juta, ribu, ago, dateText, timeText,
   karirhubUrl, initials, hue, htmlToText, filtersFromQuery, filtersToQuery, activeCount, cityLabel, fold, detailShard, yearsFrom,
@@ -13,7 +13,7 @@ const PAGE = 30;
 
 // Pesan semangat untuk teman-teman yang masih mencari kerja. Berganti setiap hari.
 const MESSAGES = [
-  { bubble: 'Semangat, ya!', title: 'Istirahat boleh, menyerah jangan.', body: 'Kalau lagi capek, ambil jeda sebentar. Lowongan baru tetap masuk setiap pagi, dan Tracking Loker akan terus mengumpulkannya untukmu.' },
+  { bubble: 'Semangat, ya!', title: 'Istirahat boleh, menyerah jangan.', body: 'Kalau lagi capek, ambil jeda sebentar. Lowongan baru tetap masuk pagi dan malam, dan Tracking Loker akan terus mengumpulkannya untukmu.' },
   { bubble: 'Satu lamaran lagi!', title: 'Lamaran yang belum berhasil tetap ada gunanya.', body: 'Setiap lamaran yang kamu kirim bikin kamu makin paham apa yang dicari perusahaan. Bisa jadi yang berikutnya justru yang berhasil.' },
   { bubble: 'Kamu pasti bisa!', title: 'Pelan-pelan, asal tetap jalan.', body: 'Tiga lamaran yang disesuaikan dengan posisinya sering lebih ampuh daripada puluhan lamaran yang dikirim sekaligus.' },
   { bubble: 'Hari baru, peluang baru', title: 'Hari ini ada {fresh} peluang baru.', body: 'Pilih yang paling cocok dengan kemampuanmu, rapikan CV sebentar, lalu kirim dengan percaya diri.' },
@@ -321,7 +321,7 @@ function renderHero() {
   if (!state.loaded) return;
   if (!state.all.length) {
     $('#hero-title').innerHTML = 'Tracking Loker sedang menyiapkan <mark>data lowongan</mark> untukmu.';
-    $('#hero-sub').textContent = 'Lowongan dari Karirhub Kemnaker dan situs karier perusahaan ditarik otomatis setiap pagi pukul 06.00 WIB.';
+    $('#hero-sub').textContent = 'Lowongan dari Karirhub Kemnaker dan situs karier perusahaan ditarik otomatis dua kali sehari, pagi dan malam.';
     return;
   }
   $('#hero-count').textContent = ribu(s.total);
@@ -414,12 +414,12 @@ function renderResults() {
     ? `dari ${ribu(state.all.length)} lowongan aktif · ${major ? `cocok untuk jurusan ${major.label}, dilihat dari bidang dan judul lowongan` : `bidang atau judulnya memuat "${state.f.jur}"`}`
     : n ? `dari ${ribu(state.all.length)} lowongan aktif` : 'Semua lowongan aktif, terbaru di atas';
   if (!state.all.length) {
-    listEl.innerHTML = `<li class="empty">${emptyArt('foto-kantor.webp', 'yellow')}<b>Data pertama sedang disiapkan</b><p>Lowongan dari Karirhub Kemnaker dan situs karier perusahaan ditarik otomatis setiap pagi pukul 06.00 WIB.</p></li>`;
+    listEl.innerHTML = `<li class="empty">${emptyArt('foto-kantor.webp', 'yellow')}<b>Data pertama sedang disiapkan</b><p>Lowongan dari Karirhub Kemnaker dan situs karier perusahaan ditarik otomatis dua kali sehari, pagi dan malam.</p></li>`;
     $('#more').hidden = true;
     return;
   }
   if (!list.length) {
-    listEl.innerHTML = `<li class="empty">${emptyArt('foto-magang.webp', 'green')}<b>Belum ketemu yang cocok</b><p>Coba kata kunci lain atau longgarkan filternya. Lowongan baru masuk setiap pagi, jadi besok bisa saja muncul.</p><button class="btn cta" type="button" data-reset>Hapus semua filter <span class="cta-dot"><svg><use href="#i-play"/></svg></span></button></li>`;
+    listEl.innerHTML = `<li class="empty">${emptyArt('foto-magang.webp', 'green')}<b>Belum ketemu yang cocok</b><p>Coba kata kunci lain atau longgarkan filternya. Lowongan baru masuk pagi dan malam, jadi nanti bisa saja muncul.</p><button class="btn cta" type="button" data-reset>Hapus semua filter <span class="cta-dot"><svg><use href="#i-play"/></svg></span></button></li>`;
     $('#more').hidden = true;
     return;
   }
@@ -617,8 +617,8 @@ function renderTrend() {
   const pctTxt = `${(Math.abs(diff) / first.active * 100).toFixed(1).replace('.', ',')}%`;
   if (sum) {
     sum.innerHTML = diff === 0
-      ? `Stabil di <b>${ribu(last.active)}</b> lowongan sejak ${tgl(first.d)}. Seluruh Indonesia, dicatat setiap pagi.`
-      : `${diff > 0 ? 'Naik' : 'Turun'} <b>${ribu(Math.abs(diff))} lowongan</b> (${diff > 0 ? '+' : '−'}${pctTxt}) sejak ${tgl(first.d)}. Seluruh Indonesia, dicatat setiap pagi.`;
+      ? `Stabil di <b>${ribu(last.active)}</b> lowongan sejak ${tgl(first.d)}. Seluruh Indonesia, dicatat setiap hari.`
+      : `${diff > 0 ? 'Naik' : 'Turun'} <b>${ribu(Math.abs(diff))} lowongan</b> (${diff > 0 ? '+' : '−'}${pctTxt}) sejak ${tgl(first.d)}. Seluruh Indonesia, dicatat setiap hari.`;
   }
   for (const b of document.querySelectorAll('[data-trend-view]')) {
     const on = b.dataset.trendView === state.trendView;

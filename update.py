@@ -527,6 +527,10 @@ def load_companies(path: Path) -> list[dict]:
 # ---------------------------------------------------------------- deskripsi lowongan perusahaan
 
 DETAIL_DIR = "detail"
+# Naikkan bila pembaca deskripsi diperbaiki: deskripsi yang dulu kosong dicoba sekali lagi.
+DESC_VERSION = 2
+LOGO_DAYS = 30            # logo perusahaan dicek ulang setiap 30 hari
+LOGO_BUDGET_SEC = 3 * 60
 
 
 def shard(job_id: str) -> str:
@@ -535,6 +539,12 @@ def shard(job_id: str) -> str:
     for b in job_id.encode("utf-8"):
         h = ((h ^ b) * 0x01000193) & 0xFFFFFFFF
     return f"{h & 0xFF:02x}"
+
+
+def described_ids(out_dir: Path, stored: dict[str, str]) -> set[str]:
+    """Id yang tidak perlu diambil lagi deskripsinya. Yang kosong dicoba ulang bila versi pembacanya baru."""
+    version = read_json(out_dir / DETAIL_DIR / "_info.json", {}).get("versi", 1)
+    return {k for k, v in stored.items() if v or version >= DESC_VERSION}
 
 
 def read_details(out_dir: Path) -> dict[str, str]:
@@ -560,8 +570,48 @@ def write_details(out_dir: Path, details: dict[str, str], now: datetime) -> None
     for name, data in shards.items():
         write_json(folder / f"{name}.json", dict(sorted(data.items())))
     # Selalu ada, supaya "git add detail" di workflow tidak gagal walau belum ada deskripsi.
-    write_json(folder / "_info.json", {"updated": now.isoformat(timespec="seconds"),
+    write_json(folder / "_info.json", {"updated": now.isoformat(timespec="seconds"), "versi": DESC_VERSION,
                                        "jobs": sum(1 for t in details.values() if t)})
+
+
+def name_key(name: str) -> str:
+    """Nama perusahaan tanpa PT/Tbk/(Persero)/tanda baca, untuk mencocokkan perusahaan yang sama."""
+    low = re.sub(r"\(persero\)|\bpt\b\.?|\btbk\b\.?|[^a-z0-9 ]", " ", (name or "").lower())
+    return re.sub(r"\s+", " ", low).strip()
+
+
+def resolve_logos(out_dir: Path, companies: list[dict], now: datetime) -> dict[str, str]:
+    """Logo resmi tiap perusahaan, disimpan di detail/_logo.json dan dicek ulang setiap LOGO_DAYS hari."""
+    from concurrent.futures import ThreadPoolExecutor, wait
+
+    path = out_dir / DETAIL_DIR / "_logo.json"
+    cache = read_json(path, {})
+    now_ts = int(now.timestamp())
+    todo = [c for c in companies if not c.get("logo") and c.get("web")
+            and now_ts - int((cache.get(c["nama"]) or {}).get("t", 0)) > LOGO_DAYS * 86400]
+
+    def one(company):
+        try:
+            return company["nama"], karier.find_logo(company)
+        except Exception:  # noqa: BLE001
+            return company["nama"], ""
+
+    if todo:
+        pool = ThreadPoolExecutor(max_workers=8)
+        futures = [pool.submit(one, c) for c in todo]
+        done, _ = wait(futures, timeout=LOGO_BUDGET_SEC)
+        for fut in done:
+            name, url = fut.result()
+            cache[name] = {"url": url, "t": now_ts}
+        pool.shutdown(wait=False, cancel_futures=True)
+        (out_dir / DETAIL_DIR).mkdir(exist_ok=True)
+        write_json(path, dict(sorted(cache.items())))
+        log(f"Logo perusahaan: {sum(1 for f in done if f.result()[1])} ditemukan dari {len(todo)} dicek")
+    logos = {c["nama"]: (cache.get(c["nama"]) or {}).get("url", "") for c in companies}
+    for c in companies:
+        if c.get("logo"):
+            logos[c["nama"]] = c["logo"]
+    return {k: v for k, v in logos.items() if v}
 
 
 def company_via(company: dict) -> str:
@@ -761,8 +811,12 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
 
     companies = load_companies(out_dir / "perusahaan.json")
     stored = read_details(out_dir)
+    logos = resolve_logos(out_dir, read_companies(out_dir / "perusahaan.json"), now)
+    for company in companies:
+        if logos.get(company["nama"]) and not company.get("logo"):
+            company["logo"] = logos[company["nama"]]
     if companies:
-        jobs, whole, company_sources = fetch_companies(companies, refs, prev, now, set(stored))
+        jobs, whole, company_sources = fetch_companies(companies, refs, prev, now, described_ids(out_dir, stored))
         fresh += jobs
         complete |= whole
         sources += company_sources
@@ -774,6 +828,11 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
     checked = fill_locations(fresh, prev, checked, refs, started)
 
     jobs, added, closed = merge(prev, fresh, complete, day_number(now), now_ts)
+    # Lowongan yang sama perusahaannya (termasuk dari Karirhub) memakai logo resmi bila belum punya logo.
+    by_name = {name_key(n): url for n, url in logos.items()}
+    for job in jobs:
+        if not job.get("logo"):
+            job["logo"] = by_name.get(name_key(job["company"]), "")
     first_run = not prev
     unresolved = {j["id"] for j in jobs if j["via"] == "karirhub" and not j["province"]}
     meta = {
@@ -807,6 +866,27 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
             for s in sources:
                 fh.write(f"| {s['name']} | {s['count']} | {'OK' if s['ok'] else 'Gagal: ' + s.get('error', '')} |\n")
     return 0
+
+
+def needs_run(out_dir: Path, now: datetime, event: str) -> bool:
+    """Untuk jadwal cadangan: tarik hanya bila data sesi ini (pagi 04.00-15.59 / malam 16.00-03.59 WIB) belum ada."""
+    if event != "schedule":
+        return True
+    updated = read_json(out_dir / "jobs.json", {}).get("updated")
+    if not updated:
+        return True
+    try:
+        last = datetime.fromisoformat(updated).astimezone(WIB)
+    except ValueError:
+        return True
+    now = now.astimezone(WIB)
+    if 4 <= now.hour < 16:
+        start = now.replace(hour=4, minute=0, second=0, microsecond=0)
+    elif now.hour >= 16:
+        start = now.replace(hour=16, minute=0, second=0, microsecond=0)
+    else:
+        start = (now - timedelta(days=1)).replace(hour=16, minute=0, second=0, microsecond=0)
+    return last < start
 
 
 def check(out_dir: Path, now: datetime | None = None, only: str = "") -> int:
@@ -844,7 +924,14 @@ def main(argv=None) -> int:
     parser.add_argument("--max-pages", type=int, default=MAX_PAGES, help="batas halaman Karirhub (untuk uji cepat)")
     parser.add_argument("--cek", action="store_true", help="periksa situs karier perusahaan, tulis cek-karier.json")
     parser.add_argument("--hanya", default="", help="dengan --cek: kode/nama perusahaan, pisahkan dengan koma")
+    parser.add_argument("--perlu", action="store_true",
+                        help="cetak jalan=true/false: apakah jadwal ini perlu menarik (untuk $GITHUB_OUTPUT)")
     args = parser.parse_args(argv)
+    if args.perlu:
+        run_now = needs_run(args.out, datetime.now(WIB), os.environ.get("EVENT", "schedule"))
+        print(f"jalan={'true' if run_now else 'false'}")
+        print("Data sesi ini sudah ada, penarikan dilewati." if not run_now else "Menarik data.", file=sys.stderr)
+        return 0
     if args.cek:
         return check(args.out, only=args.hanya)
     return run(args.out, max_pages=args.max_pages)
