@@ -2,9 +2,17 @@ name: Tarik lowongan harian
 
 on:
   schedule:
-    # Jadwal GitHub sering telat atau terlewat kalau tepat di awal jam, jadi dipilih menit yang sepi.
-    - cron: "13 22 * * *"   # 05.13 WIB, data siap sebelum ±06.00
-    - cron: "37 0 * * *"    # 07.37 WIB, cadangan kalau jadwal pagi terlewat
+    # Jadwal GitHub sering telat atau terlewat, jadi tiap sesi punya beberapa jadwal cadangan.
+    # Jadwal cadangan langsung berhenti bila data sesi itu sudah ada (lihat langkah "Perlu menarik?").
+    # Pagi (WIB): 05.13, 06.23, 07.37, 09.07
+    - cron: "13 22 * * *"
+    - cron: "23 23 * * *"
+    - cron: "37 0 * * *"
+    - cron: "7 2 * * *"
+    # Malam (WIB): 18.13, 19.23, 20.37
+    - cron: "13 11 * * *"
+    - cron: "23 12 * * *"
+    - cron: "37 13 * * *"
   workflow_dispatch:
 
 permissions:
@@ -21,16 +29,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Perlu menarik?
+        id: perlu
+        env:
+          EVENT: ${{ github.event_name }}
+        run: python3 update.py --perlu >> "$GITHUB_OUTPUT"
+
       - name: Uji penarik data
+        if: steps.perlu.outputs.jalan == 'true'
         run: python3 -m unittest -q test_update
 
       - name: Tarik lowongan
+        if: steps.perlu.outputs.jalan == 'true'
         run: python3 update.py
 
       - name: Simpan data baru
+        if: steps.perlu.outputs.jalan == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # detail/ berisi deskripsi lowongan dan logo dari situs karier perusahaan.
           git add jobs.json links.json stats.json detail
           if git diff --cached --quiet; then
             echo "Tidak ada perubahan data."
