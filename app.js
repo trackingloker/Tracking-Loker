@@ -904,7 +904,10 @@ async function loadCompanyDetail(job) {
   if (state.openId !== job.id || !box.isConnected) return;
   const text = data[job.id] && data[job.id].d;
   if (!text) {
-    box.innerHTML = `<p class="d-text">Deskripsi lengkap dan formulir lamaran ada di situs karier ${esc(job.company)}.</p>`;
+    // Ada catatannya tapi kosong: sudah dibuka dan sumbernya memang tidak menulis deskripsi.
+    box.innerHTML = data[job.id]
+      ? `<p class="d-text">Situs karier ${esc(job.company)} tidak mencantumkan deskripsi untuk lowongan ini. Buka lewat tombol lamar untuk melihat detail posisinya.</p>`
+      : `<p class="d-text">Deskripsi lengkap dan formulir lamaran ada di situs karier ${esc(job.company)}.</p>`;
     renderCompare(job, {});
     return;
   }

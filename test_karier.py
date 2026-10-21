@@ -39,8 +39,49 @@ class FakeHttp:
                     body, ctype = out
                 else:
                     body, ctype = json.dumps(out), "application/json"
-                return 200, url, ctype, body.encode()
+                return 200, url, ctype, body if isinstance(body, bytes) else body.encode()
         raise HTTPError(url, 404, "tidak ada", {}, BytesIO())
+
+
+try:
+    import pypdf  # noqa: F401
+    HAS_PYPDF = True
+except ImportError:
+    HAS_PYPDF = False
+
+
+def png(width: int, height: int) -> tuple[bytes, str]:
+    """Berkas PNG tiruan: cukup tanda tangan dan header ukurannya."""
+    head = b"\x89PNG\r\n\x1a\n" + (13).to_bytes(4, "big") + b"IHDR" + width.to_bytes(4, "big") + height.to_bytes(4, "big")
+    return head + b"\x08\x06\x00\x00\x00" + bytes(120), "image/png"
+
+
+def svg(fill: str) -> tuple[str, str]:
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><path fill="{fill}" d="M0 0h100v40H0z"/>'
+            f'<path style="fill:{fill}" d="M10 10h20v20H10z"/></svg>'), "image/svg+xml"
+
+
+def tiny_pdf(lines: list[str]) -> bytes:
+    """PDF satu halaman berisi baris teks (Helvetica), dengan tabel xref yang benar."""
+    text = "BT /F1 11 Tf 14 TL 50 780 Td " + " ".join(
+        "(" + line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)") + ") Tj T*" for line in lines) + " ET"
+    objects = [
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        f"<< /Length {len(text)} >>\nstream\n{text}\nendstream",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    out = b"%PDF-1.4\n"
+    offsets = []
+    for i, obj in enumerate(objects, 1):
+        offsets.append(len(out))
+        out += f"{i} 0 obj\n{obj}\nendobj\n".encode("latin-1")
+    xref = len(out)
+    out += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode()
+    out += "".join(f"{o:010d} 00000 n \n" for o in offsets).encode()
+    out += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    return out
 
 
 class Base(unittest.TestCase):
@@ -270,19 +311,115 @@ class TestDeskripsi(Base):
         self.assertEqual(extra["loc"], "Seluruh Indonesia")
         self.assertEqual(extra["expires"], int(datetime(2026, 12, 31, tzinfo=karier.WIB).timestamp()))
 
-    def test_lowongan_pdf_diberi_catatan(self):
-        text, _ = karier.describe({"ats": "html"}, {"link": "https://www.valeindonesia.com/documents/d/guest/20261009_x", "id": "x"})
+    @unittest.skipUnless(HAS_PYPDF, "pypdf tidak terpasang")
+    def test_lowongan_pdf_dibaca_isinya(self):
+        pdf = tiny_pdf(["Page 1 from 3", "Position:", "Junior Mineral Resources Inventory Geologist",
+                        "Work Location: Sorowako", "Purpose of the Role", "Mengelola data sumber daya mineral dan",
+                        "inventaris cadangan nikel.", "- S1 Teknik Geologi", "- Pengalaman 0-2 tahun"])
+        self.use({"valeindonesia.com/documents/": lambda u, b: (pdf, "application/pdf")})
+        text, extra = karier.describe({"ats": "html"}, {"link": "https://www.valeindonesia.com/documents/d/guest/20261009_x", "id": "x"})
+        self.assertNotIn("Page 1", text)
+        self.assertIn("Mengelola data sumber daya mineral dan inventaris cadangan nikel.", text)  # baris PDF disambung
+        self.assertIn("\u2022 S1 Teknik Geologi", text)
+        self.assertEqual(extra["loc"], "Sorowako")
+        self.assertEqual(karier.place(extra["loc"], REFS), ("Kab. Luwu Timur", "Sulawesi Selatan"))
+
+    def test_pdf_tanpa_pypdf_diberi_catatan(self):
+        self.use({"valeindonesia.com/documents/": lambda u, b: (tiny_pdf(["Isi"]), "application/pdf")})
+        old, karier.pdf_text = karier.pdf_text, lambda body: ("", {})
+        try:
+            text, _ = karier.describe({"ats": "html"}, {"link": "https://www.valeindonesia.com/documents/d/guest/x", "id": "x"})
+        finally:
+            karier.pdf_text = old
         self.assertEqual(text, karier.PDF_NOTE)
+
+    def test_deskripsi_dirapikan(self):
+        # Workday Japfa mengirim baris baru sebagai "&amp;#xa;" sehingga dulu tampil "&#xa;" di layar.
+        self.assertEqual(karier.html_to_text("<p>Create SO DO Billing &amp;#xa;&amp;#xa;</p><p>JAPFA adalah perusahaan.</p>"),
+                         "Create SO DO Billing\n\nJAPFA adalah perusahaan.")
+        self.assertEqual(karier.tidy_desc("Create SO DO Billing\n&#xa;&#xa;\n\nJAPFA adalah perusahaan."),
+                         "Create SO DO Billing\n\nJAPFA adalah perusahaan.")
+        # Hanya judul bagian tanpa isi (Petrosea): dianggap kosong.
+        self.assertEqual(karier.tidy_desc("Job Summary\n\nJob Responsibilities\n\nEducation\n\nCertification"), "")
+        # Deskripsi pendek tapi berisi tetap disimpan.
+        self.assertEqual(karier.tidy_desc("Kualifikasi\n\u2022 S1 Akuntansi\n\u2022 Pengalaman 2 tahun"),
+                         "Kualifikasi\n\u2022 S1 Akuntansi\n\u2022 Pengalaman 2 tahun")
+        self.assertEqual(karier.tidy_desc("Create SO DO Billing"), "Create SO DO Billing")
 
     def test_logo_resmi(self):
         home = ('<head><link rel="icon" href="/favicon.ico"><link rel="apple-touch-icon" sizes="180x180" href="/apple-icon.png">'
                 '</head><body><img class="site-logo" src="/img/logo-bca.svg"></body>')
-        self.use({"www.bca.co.id": lambda u, b: (home, "text/html")})
+        self.use({"www.bca.co.id/apple-icon.png": lambda u, b: png(180, 180),
+                  "www.bca.co.id": lambda u, b: (home, "text/html")})
         self.assertEqual(karier.find_logo({"web": "https://www.bca.co.id"}), "https://www.bca.co.id/apple-icon.png")
         self.use({"kecil.co.id": lambda u, b: ('<link rel="icon" href="/favicon.ico">', "text/html")})
         self.assertEqual(karier.find_logo({"web": "https://kecil.co.id"}), "")  # favicon kecil: pakai inisial saja
-        self.use({"svg.co.id": lambda u, b: ('<link rel="icon" type="image/svg+xml" href="/icon.svg">', "text/html")})
+        self.use({"svg.co.id/icon.svg": lambda u, b: svg("#0060AF"),
+                  "svg.co.id": lambda u, b: ('<link rel="icon" type="image/svg+xml" href="/icon.svg">', "text/html")})
         self.assertEqual(karier.find_logo({"web": "https://svg.co.id"}), "https://svg.co.id/icon.svg")
+
+    def test_logo_putih_sosmed_dan_rusak_dilewati(self):
+        # Seperti karir.bca.co.id: logo header putih (untuk latar biru), logo berwarna di bagian bawah.
+        page = ('<header><img alt="BCA logo" src="/candidate/_nuxt/bca-white.9YHRqfMr.svg"></header>'
+                '<a href="https://tiktok.com/@bca"><img class="logo-sosmed" src="/img/tiktok-logo.webp"></a>'
+                '<img class="logo" src="/img/logo-rusak.png">'
+                '<footer><img alt="BCA logo" src="/candidate/_nuxt/bca-blue.CIusCzFC.svg"></footer>')
+        http = self.use({
+            "bca-blue": lambda u, b: svg("#0060AF"),
+            "logo-rusak.png": lambda u, b: ("<!doctype html><title>404</title>" + " " * 200, "text/html"),
+            "karir.bca.co.id": lambda u, b: (page, "text/html"),
+        })
+        company = {"nama": "PT Bank Central Asia Tbk", "kode": "BBCA", "situs": ["https://karir.bca.co.id/"]}
+        self.assertEqual(karier.find_logo(company), "https://karir.bca.co.id/candidate/_nuxt/bca-blue.CIusCzFC.svg")
+        self.assertFalse(any("white" in u or "tiktok" in u for u, _ in http.calls))
+        self.assertTrue(karier.svg_is_white(svg("#FFFFFF")[0]))
+        self.assertTrue(karier.svg_is_white('<svg><g style="fill: rgba(255, 255, 255, 0.9)"><path/></g></svg>'))
+        self.assertFalse(karier.svg_is_white('<svg><path d="M0 0"/></svg>'))  # tanpa warna = hitam
+        self.assertFalse(karier.svg_is_white('<svg><path fill="#fff"/><path fill="#E31E24"/></svg>'))
+
+    def test_logo_dari_halaman_platform_lowongan(self):
+        # Beranda tidak bisa dibuka: logo diambil dari halaman Lever/Greenhouse/SuccessFactors perusahaannya.
+        lever = ('<div class="main-header-logo"><a href="https://jobs.lever.co/GoToGroup"><img alt="GoTo Group logo" '
+                 'src="https://lever-client-logos.s3.us-west-2.amazonaws.com/ea3dc26a-1682066441676.png"></a></div>'
+                 '<img src="https://jobs.lever.co/img/lever-logo-refresh.svg" alt="Lever logo">')
+        self.use({
+            "www.gotocompany.com": lambda u, b: TimeoutError("timed out"),
+            "lever-client-logos": lambda u, b: png(400, 120),
+            "jobs.lever.co/GoToGroup": lambda u, b: (lever, "text/html"),
+        })
+        goto = {"nama": "PT GoTo Gojek Tokopedia Tbk", "ats": "lever", "slug": "GoToGroup", "web": "https://www.gotocompany.com"}
+        self.assertEqual(karier.logo_pages(goto), ["https://www.gotocompany.com", "https://jobs.lever.co/GoToGroup"])
+        self.assertEqual(karier.find_logo(goto),
+                         "https://lever-client-logos.s3.us-west-2.amazonaws.com/ea3dc26a-1682066441676.png")
+        # Greenhouse tanpa beranda di perusahaan.json (Xendit).
+        board = ('<meta property="og:image" content="https://s3-recruiting.cdn.greenhouse.io/external_greenhouse_job_boards/'
+                 'logos/400/368/700/original/Xendit_LogoTextRHS_final.png?1594768204">')
+        self.use({"s3-recruiting.cdn.greenhouse.io": lambda u, b: png(600, 200),
+                  "job-boards.greenhouse.io/xendit": lambda u, b: (board, "text/html")})
+        self.assertIn("Xendit_LogoTextRHS_final.png", karier.find_logo({"nama": "Xendit", "ats": "greenhouse", "slug": "xendit"}))
+        # SuccessFactors (Chandra Asri): logo header berformat JPG di rmkcdn.
+        rmk = '<a href="/"><img class="logo" src="//rmkcdn.successfactors.com/f48a2531/0516ba0f-a760-4ba3-b8d5-9.jpg" alt=""></a>'
+        jpg = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00" \
+              b"\xff\xc0\x00\x11\x08\x00\x50\x01\x2c\x03\x01\x22\x00\x02\x11\x01\x03\x11\x01" + bytes(120)
+        self.use({"www.chandra-asri.com": lambda u, b: TimeoutError("timed out"),
+                  "rmkcdn.successfactors.com": lambda u, b: (jpg, "image/jpeg"),
+                  "careers.chandra-asri.com": lambda u, b: (rmk, "text/html")})
+        self.assertEqual(karier.image_size(jpg), (300, 80))
+        self.assertEqual(karier.find_logo({"nama": "PT Chandra Asri Pacific Tbk", "ats": "successfactors", "web": "https://www.chandra-asri.com",
+                                           "situs": ["https://careers.chandra-asri.com/"]}),
+                         "https://rmkcdn.successfactors.com/f48a2531/0516ba0f-a760-4ba3-b8d5-9.jpg")
+
+    def test_logo_workable_dari_api_akun(self):
+        self.use({"api/v1/accounts/indico": lambda u, b: {"name": "INDICO", "logo": "https://workablehr.s3.amazonaws.com/uploads/account/logo/561932/logo"},
+                  "workablehr.s3.amazonaws.com": lambda u, b: png(256, 256)})
+        self.assertEqual(karier.find_logo({"nama": "INDICO", "ats": "workable", "slug": "indico", "web": "https://indico.id"}),
+                         "https://workablehr.s3.amazonaws.com/uploads/account/logo/561932/logo")
+
+    def test_ukuran_gambar(self):
+        self.assertEqual(karier.image_size(png(192, 192)[0]), (192, 192))
+        ico = b"\x00\x00\x01\x00\x02\x00" + bytes([16, 16]) + bytes(14) + bytes([0, 0]) + bytes(14)
+        self.assertEqual(karier.image_size(ico), (256, 256))
+        self.assertEqual(karier.brand_words({"nama": "PT Bank Central Asia Tbk", "kode": "BBCA"}) >= {"bca", "central", "asia", "bbca"}, True)
 
     def test_tipe_disamakan(self):
         self.assertEqual([karier.norm_type(t) for t in ["Permanent", "Direct Contract", "FULL_TIME", "Internship", "Harian"]],
@@ -451,12 +588,68 @@ class TestPenarikanHarian(Base):
         (tmp / "detail" / "_info.json").write_text(json.dumps({"versi": update.DESC_VERSION}))
         self.assertEqual(update.described_ids(tmp, stored), {"a", "b"})
 
+    def test_logo_dicek_ulang_sesuai_jadwal_dan_versi(self):
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "detail").mkdir()
+        now_ts = int(NOW.timestamp())
+        day = 86400
+        cache = {
+            "BCA": {"url": "https://bca/logo-bca-white.svg", "t": now_ts - day},                         # aturan lama
+            "Kalbe": {"url": "https://kalbe/logo.svg", "t": now_ts - 2 * day, "v": update.LOGO_VERSION},  # masih segar
+            "GoTo": {"url": "", "t": now_ts - 2 * day, "v": update.LOGO_VERSION},                         # belum ketemu
+            "Vale": {"url": "https://vale/fav.png", "t": now_ts - 9 * day, "v": update.LOGO_VERSION},     # sudah seminggu
+        }
+        (tmp / "detail" / "_logo.json").write_text(json.dumps(cache))
+        found = {"BCA": "https://bca/bca-blue.svg", "GoTo": "https://lever/goto.png", "Vale": ""}
+        asked = []
+        old_find, old_ok = karier.find_logo, karier.usable_logo
+        karier.find_logo = lambda c: asked.append(c["nama"]) or found.get(c["nama"], "")
+        karier.usable_logo = lambda url: url == "https://vale/fav.png"  # situs Vale sedang tak bisa dibuka
+        try:
+            companies = [{"nama": n, "web": f"https://{n.lower()}.co.id"} for n in cache]
+            logos = update.resolve_logos(tmp, companies, NOW, active={"GoTo"})
+        finally:
+            karier.find_logo, karier.usable_logo = old_find, old_ok
+        self.assertEqual(sorted(asked), ["BCA", "GoTo", "Vale"])
+        self.assertEqual(logos, {"BCA": "https://bca/bca-blue.svg", "Kalbe": "https://kalbe/logo.svg",
+                                 "GoTo": "https://lever/goto.png", "Vale": "https://vale/fav.png"})
+        saved = json.loads((tmp / "detail" / "_logo.json").read_text())
+        self.assertTrue(all(e["v"] == update.LOGO_VERSION for e in saved.values()))
+
+    def test_logo_untuk_nama_lain_di_karirhub(self):
+        companies = [{"nama": "PT XLSMART Telecom Sejahtera Tbk", "alias": ["PT XL Axiata Tbk"]}, {"nama": "Tanpa Logo"}]
+        names = update.logo_names(companies, {"PT XLSMART Telecom Sejahtera Tbk": "https://xl/logo.png"})
+        self.assertEqual(names.get(update.name_key("PT Xl Axiata")), "https://xl/logo.png")
+        self.assertEqual(names.get(update.name_key("PT. XLSMART Telecom Sejahtera")), "https://xl/logo.png")
+        self.assertNotIn(update.name_key("Tanpa Logo"), names)
+        by_name = {update.name_key(n): n for n in ["PT Astra Credit Companies", "PT Bank BTPN Syariah Tbk", "PT Bank Mandiri (Persero) Tbk",
+                                                   "PT Bank Central Asia Tbk", "PT Indofood CBP Sukses Makmur Tbk", "PT Erajaya Swasembada Tbk"]}
+        cases = {
+            "Astra Credit Companies (ACC)": "PT Astra Credit Companies",
+            "Astra Credit Companies WTC Mangga Dua": "PT Astra Credit Companies",
+            "PT Bank Btpn Syariah, Tbk Kc Padang": "PT Bank BTPN Syariah Tbk",
+            "PT. Indofood CBP Sukses Makmur, Tbk - Branch Semarang": "PT Indofood CBP Sukses Makmur Tbk",
+            "PT Erajaya Swasembada Tbk (Bali)": "PT Erajaya Swasembada Tbk",
+            "Erajaya Swasembada": "PT Erajaya Swasembada Tbk",
+            "PT Bank Mandiri Taspen": "",            # anak usaha lain, logonya beda
+            "PT Bank Central Asia Syariah": "",      # BCA Syariah bukan BCA
+            "PT Mandiri Utama Finance": "",
+        }
+        self.assertEqual({k: update.logo_for(k, by_name) for k in cases}, cases)
+
+    def test_deskripsi_tersimpan_dirapikan_dan_pdf_dibaca_ulang(self):
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "detail").mkdir()
+        (tmp / "detail" / "00.json").write_text(json.dumps({"a": {"d": karier.PDF_NOTE}, "b": {"d": "isi"}}))
+        self.assertEqual(update.read_details(tmp), {"b": "isi"})
+
     def test_logo_perusahaan_juga_untuk_lowongan_karirhub(self):
         import test_update
         tmp = Path(tempfile.mkdtemp())
         (tmp / "perusahaan.json").write_text(json.dumps([
             {"nama": "PT Contoh Jaya Tbk", "web": "https://contoh.co.id", "ats": "workable", "slug": "contoh"}]))
         self.use({
+            "contoh.co.id/apple.png": lambda u, b: png(180, 180),
             "contoh.co.id": lambda u, b: ('<link rel="apple-touch-icon" href="/apple.png">', "text/html"),
             "widget/accounts/contoh": lambda u, b: {"jobs": [{"title": "Analis", "shortcode": "A1",
                                                               "locations": [{"city": "Jakarta", "country": "Indonesia"}]}]},

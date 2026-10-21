@@ -528,9 +528,12 @@ def load_companies(path: Path) -> list[dict]:
 
 DETAIL_DIR = "detail"
 # Naikkan bila pembaca deskripsi diperbaiki: deskripsi yang dulu kosong dicoba sekali lagi.
-DESC_VERSION = 2
-LOGO_DAYS = 30            # logo perusahaan dicek ulang setiap 30 hari
-LOGO_BUDGET_SEC = 3 * 60
+DESC_VERSION = 3
+# Naikkan bila pencari logo diperbaiki: semua logo dicari ulang dengan aturan baru.
+LOGO_VERSION = 2
+LOGO_DAYS = 7             # logo yang sudah ketemu dicek ulang tiap minggu (nama berkasnya bisa berganti)
+LOGO_RETRY_DAYS = 1       # yang belum ketemu dicoba lagi besoknya
+LOGO_BUDGET_SEC = 4 * 60
 
 
 def shard(job_id: str) -> str:
@@ -555,7 +558,8 @@ def read_details(out_dir: Path) -> dict[str, str]:
         for path in folder.glob("[0-9a-f][0-9a-f].json"):
             data = read_json(path, {})
             out.update({k: (v.get("d", "") if isinstance(v, dict) else str(v)) for k, v in data.items()})
-    return out
+    # Catatan "berupa PDF" bukan deskripsi: dibaca ulang supaya isi PDF-nya ikut tampil begitu pypdf tersedia.
+    return {k: v for k, v in out.items() if v != karier.PDF_NOTE}
 
 
 def write_details(out_dir: Path, details: dict[str, str], now: datetime) -> None:
@@ -580,38 +584,95 @@ def name_key(name: str) -> str:
     return re.sub(r"\s+", " ", low).strip()
 
 
-def resolve_logos(out_dir: Path, companies: list[dict], now: datetime) -> dict[str, str]:
-    """Logo resmi tiap perusahaan, disimpan di detail/_logo.json dan dicek ulang setiap LOGO_DAYS hari."""
+def resolve_logos(out_dir: Path, companies: list[dict], now: datetime, active: set[str] | None = None) -> dict[str, str]:
+    """Logo resmi tiap perusahaan, disimpan di detail/_logo.json.
+
+    Yang sudah ketemu dicek ulang setiap LOGO_DAYS hari, yang belum ketemu setiap LOGO_RETRY_DAYS hari.
+    Perusahaan yang lowongannya tayang (active) didahulukan supaya kebagian waktu lebih dulu.
+    """
     from concurrent.futures import ThreadPoolExecutor, wait
 
     path = out_dir / DETAIL_DIR / "_logo.json"
     cache = read_json(path, {})
     now_ts = int(now.timestamp())
-    todo = [c for c in companies if not c.get("logo") and c.get("web")
-            and now_ts - int((cache.get(c["nama"]) or {}).get("t", 0)) > LOGO_DAYS * 86400]
+    active = active or set()
+
+    def due(company: dict) -> bool:
+        if company.get("logo") or not (company.get("web") or company.get("situs") or company.get("slug")):
+            return False
+        entry = cache.get(company["nama"]) or {}
+        if entry.get("v") != LOGO_VERSION:
+            return True
+        days = LOGO_DAYS if entry.get("url") else LOGO_RETRY_DAYS
+        return now_ts - int(entry.get("t", 0)) > days * 86400 - 3600
+
+    todo = sorted((c for c in companies if due(c)), key=lambda c: c["nama"] not in active)
 
     def one(company):
+        name = company["nama"]
         try:
-            return company["nama"], karier.find_logo(company)
+            url = karier.find_logo(company)
         except Exception:  # noqa: BLE001
-            return company["nama"], ""
+            url = ""
+        old = (cache.get(name) or {}).get("url", "")
+        if not url and old and karier.usable_logo(old):
+            url = old  # situsnya sedang tidak bisa dibuka, tapi logo lama masih bisa dipakai
+        return name, url
 
     if todo:
-        pool = ThreadPoolExecutor(max_workers=8)
+        pool = ThreadPoolExecutor(max_workers=12)
         futures = [pool.submit(one, c) for c in todo]
         done, _ = wait(futures, timeout=LOGO_BUDGET_SEC)
         for fut in done:
             name, url = fut.result()
-            cache[name] = {"url": url, "t": now_ts}
+            cache[name] = {"url": url, "t": now_ts, "v": LOGO_VERSION}
         pool.shutdown(wait=False, cancel_futures=True)
         (out_dir / DETAIL_DIR).mkdir(exist_ok=True)
         write_json(path, dict(sorted(cache.items())))
-        log(f"Logo perusahaan: {sum(1 for f in done if f.result()[1])} ditemukan dari {len(todo)} dicek")
+        log(f"Logo perusahaan: {sum(1 for f in done if f.result()[1])} ditemukan dari {len(done)} dicek "
+            f"({len(todo) - len(done)} menunggu giliran)")
     logos = {c["nama"]: (cache.get(c["nama"]) or {}).get("url", "") for c in companies}
     for c in companies:
         if c.get("logo"):
             logos[c["nama"]] = c["logo"]
     return {k: v for k, v in logos.items() if v}
+
+
+# Kata yang menandai badan usaha lain (anak usaha), bukan cabang: "Bank Central Asia Syariah" bukan BCA.
+ENTITY_WORDS = {"syariah", "finance", "multifinance", "sekuritas", "asuransi", "insurance", "life", "general", "digital",
+                "ventura", "ventures", "capital", "properti", "property", "land", "energy", "energi", "mining", "resources",
+                "logistik", "logistics", "foundation", "yayasan", "koperasi", "dana", "pensiun", "leasing", "tbk"}
+BRANCH_CUT = re.compile(r"\s+-\s+|\s*\(|,?\s+\b(?:kc|kcp|cabang|branch|kantor|cab\.?|area|region|wilayah)\b", re.I)
+
+
+def logo_for(company: str, by_name: dict[str, str]) -> str:
+    """Logo resmi untuk nama perusahaan di sebuah lowongan, termasuk nama cabangnya:
+    "Astra Credit Companies (ACC)", "PT Bank Btpn Syariah, Tbk Kc Padang", "Indofood CBP ... - Branch Semarang"."""
+    key = name_key(company)
+    if key in by_name:
+        return by_name[key]
+    base = name_key(BRANCH_CUT.split(company or "", maxsplit=1)[0])
+    if base in by_name:
+        return by_name[base]
+    words = key.split()
+    for n in range(len(words) - 1, 2, -1):  # nama resmi minimal 3 kata, sisanya nama kota/cabang
+        prefix = " ".join(words[:n])
+        if prefix in by_name and len(prefix) >= 12 and words[n] not in ENTITY_WORDS:
+            return by_name[prefix]
+    return ""
+
+
+def logo_names(companies: list[dict], logos: dict[str, str]) -> dict[str, str]:
+    """{nama_kunci: logo} untuk mencocokkan lowongan dari sumber lain, termasuk nama lain di "alias"
+    (mis. lowongan Karirhub atas nama "PT XL Axiata" memakai logo XLSMART)."""
+    out: dict[str, str] = {}
+    for c in companies:
+        url = logos.get(c["nama"])
+        if not url:
+            continue
+        for name in [c["nama"], *(c.get("alias") or [])]:
+            out.setdefault(name_key(name), url)
+    return out
 
 
 def company_via(company: dict) -> str:
@@ -811,7 +872,15 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
 
     companies = load_companies(out_dir / "perusahaan.json")
     stored = read_details(out_dir)
-    logos = resolve_logos(out_dir, read_companies(out_dir / "perusahaan.json"), now)
+    all_companies = read_companies(out_dir / "perusahaan.json")
+    # Perusahaan yang lowongannya sedang tayang (dari situsnya sendiri atau dari Karirhub) dicari logonya lebih dulu.
+    names = {}
+    for c in all_companies:
+        for n in [c["nama"], *(c.get("alias") or [])]:
+            names.setdefault(name_key(n), c["nama"])
+    active = {c["nama"] for c in companies} | {logo_for(j.get("company", ""), names) for j in prev.values()}
+    active.discard("")
+    logos = resolve_logos(out_dir, all_companies, now, active)
     for company in companies:
         if logos.get(company["nama"]) and not company.get("logo"):
             company["logo"] = logos[company["nama"]]
@@ -828,11 +897,12 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
     checked = fill_locations(fresh, prev, checked, refs, started)
 
     jobs, added, closed = merge(prev, fresh, complete, day_number(now), now_ts)
-    # Lowongan yang sama perusahaannya (termasuk dari Karirhub) memakai logo resmi bila belum punya logo.
-    by_name = {name_key(n): url for n, url in logos.items()}
+    # Lowongan yang sama perusahaannya (termasuk dari Karirhub) memakai logo resmi yang sudah dicek bisa tampil.
+    by_name = logo_names(all_companies, logos)
     for job in jobs:
-        if not job.get("logo"):
-            job["logo"] = by_name.get(name_key(job["company"]), "")
+        official = logo_for(job["company"], by_name)
+        if official:
+            job["logo"] = official
     first_run = not prev
     unresolved = {j["id"] for j in jobs if j["via"] == "karirhub" and not j["province"]}
     meta = {
@@ -850,7 +920,7 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
             continue
         text = j["desc"] if j.get("desc") is not None else stored.get(j["id"])
         if text is not None:
-            details[j["id"]] = text
+            details[j["id"]] = karier.tidy_desc(text)
     write_details(out_dir, details, now)
     stats = update_stats(read_json(stats_path, {}), jobs, None if first_run else added,
                          None if first_run else closed, now)

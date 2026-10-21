@@ -185,7 +185,18 @@ def html_to_text(markup, limit: int = DESC_LIMIT) -> str:
     text = re.sub(r"<li\b[^>]*>", "\n\u2022 ", text, flags=re.I)
     text = re.sub(r"<br\s*/?>", "\n", text, flags=re.I)
     text = re.sub(r"</(p|div|ul|ol|h[1-6]|tr|section|li|table)>|<h[1-6]\b[^>]*>|<p\b[^>]*>", "\n", text, flags=re.I)
-    text = html.unescape(re.sub(r"<[^>]+>", "", text)).replace("\xa0", " ")
+    text = html.unescape(re.sub(r"<[^>]+>", "", text))
+    if LEFTOVER_ENTITY.search(text):
+        text = html.unescape(text)  # entitas ganda, mis. "&amp;#xa;" dari Workday Japfa
+    return _tidy_lines(text, limit)
+
+
+LEFTOVER_ENTITY = re.compile(r"&(#x?[0-9a-fA-F]{1,6}|amp|nbsp|lt|gt|quot|apos);")
+
+
+def _tidy_lines(text: str, limit: int = DESC_LIMIT) -> str:
+    """Spasi dirapikan, satu baris kosong antarparagraf, butir daftar diawali •."""
+    text = text.replace("\xa0", " ").replace("\r\n", "\n").replace("\r", "\n")
     out: list[str] = []
     bullet = False
     for line in text.split("\n"):
@@ -207,6 +218,24 @@ def html_to_text(markup, limit: int = DESC_LIMIT) -> str:
     if len(text) > limit:
         text = text[:limit].rsplit("\n", 1)[0].rstrip() + "\n\u2026"
     return text
+
+
+def _is_heading(line: str) -> bool:
+    line = line.strip()
+    return len(line) <= 45 and not line.startswith("\u2022") and not re.search(r"[.;!?]\s*$|[.;!?]\s", line)
+
+
+def tidy_desc(text: str) -> str:
+    """Deskripsi siap tampil. Sisa entitas HTML dibersihkan, dan deskripsi yang hanya berisi judul bagian
+    tanpa isi (mis. "Job Summary / Education / Certification" di beberapa lowongan Petrosea) dianggap kosong."""
+    text = (text or "").strip()
+    if not text:
+        return ""
+    if LEFTOVER_ENTITY.search(text):
+        text = _tidy_lines(html.unescape(text))
+    lines = [line for line in text.split("\n") if line.strip()]
+    skeleton = len(lines) >= 3 and all(_is_heading(line) for line in lines)
+    return "" if skeleton else text
 
 
 TYPE_NAMES = {
@@ -903,6 +932,45 @@ def text_sections(page: str) -> tuple[str, dict]:
 
 PDF_NOTE = ("Detail lowongan ini berupa dokumen PDF di situs resmi perusahaan. "
             "Buka lewat tombol lamar untuk membaca deskripsi dan syaratnya.")
+PDF_BULLET = re.compile(r"^[▪●■‣⁃∙◦➢–*-]\s*(?=\S)")
+PDF_PAGE = re.compile(r"^(page|halaman|hal\.?)\s*\d+\s*(from|of|dari|/)\s*\d+$|^\d+\s*/\s*\d+$", re.I)
+
+
+def pdf_text(body: bytes) -> tuple[str, dict]:
+    """Teks lowongan dari dokumen PDF. Butuh pustaka pypdf (dipasang di workflow); tanpa itu hasilnya kosong."""
+    try:
+        from io import BytesIO
+
+        from pypdf import PdfReader
+    except ImportError:
+        return "", {}
+    try:
+        reader = PdfReader(BytesIO(body))
+        raw = "\n".join((page.extract_text() or "") for page in reader.pages[:8])
+    except Exception:  # noqa: BLE001  PDF rusak atau terkunci
+        return "", {}
+    lines: list[str] = []
+    for line in raw.split("\n"):
+        line = re.sub(r"[ \t]+", " ", line).strip()
+        if PDF_PAGE.match(line):
+            continue
+        line = PDF_BULLET.sub("• ", line)
+        prev = lines[-1] if lines else ""
+        # Baris PDF terpotong sesuai lebar halaman: sambung kembali bila kalimatnya berlanjut.
+        if line and prev and not re.search(r"[.:;!?]$", prev) and re.match(r"[a-z(,&]", line):
+            lines[-1] = f"{prev} {line}"
+        else:
+            lines.append(line)
+    extra: dict = {}
+    for i, line in enumerate(lines):
+        m = LOC_LABEL.match(line)
+        if m:
+            value = m.group(2).strip() or next((x for x in lines[i + 1:i + 3] if x), "")
+            if 2 < len(value) < 120:
+                extra["loc"] = value
+                break
+    text = _tidy_lines("\n".join(lines))
+    return (text if len(text) > 60 else ""), extra
 
 
 def describe(company: dict, r: dict) -> tuple[str, dict]:
@@ -926,9 +994,11 @@ def describe(company: dict, r: dict) -> tuple[str, dict]:
             if sec.get("text"):
                 parts.append(f"<h3>{sec.get('title') or ''}</h3>{sec['text']}")
         return html_to_text("".join(parts)), extra
-    if re.search(r"\.pdf($|\?)|/documents/d/", link, re.I):
-        return PDF_NOTE, extra
-    page, _ = get_text(link)
+    _, _, ctype, body = request(link)
+    if body[:5] == b"%PDF-" or "pdf" in (ctype or "").lower():
+        text, extra = pdf_text(body)  # mis. Vale: setiap lowongan berupa dokumen PDF
+        return (text or PDF_NOTE), extra
+    page = _decode(body, ctype)
     nodes = jobpostings(page)
     if nodes and nodes[0].get("description"):
         return html_to_text(nodes[0]["description"]), extra
@@ -950,49 +1020,204 @@ def describe(company: dict, r: dict) -> tuple[str, dict]:
     return (html_to_text(og.group(1)) if og else ""), extra
 
 
+LOGO_MIN_PX = 64
+LOGO_TRIES = 6             # kandidat gambar yang diunduh untuk dicek per halaman
+# Bukan logo perusahaan: ikon media sosial/toko aplikasi, ikon mask Safari (satu warna), versi putih untuk latar gelap.
+LOGO_SKIP = re.compile(
+    r"facebook|instagram|twitter|tiktok|youtube|linkedin|whatsapp|telegram|google-?play|app-?store|play-?store|"
+    r"safari-pinned|mask-icon|placeholder|loading|spinner|sprite|avatar|banner|hero|slider|"
+    r"white|putih|negative|inverse|reverse|[-_]wht\b", re.I)
+GENERIC_WORDS = {"pt", "tbk", "persero", "indonesia", "the", "and", "dan", "group", "grup", "internasional",
+                 "international", "company", "corporation", "corp", "co", "of"}
+WHITE = {"#fff", "#ffffff", "white", "#fefefe", "#fdfdfd", "#fcfcfc", "#fafafa", "rgb(255,255,255)", "#ffffffff"}
+
+
+def brand_words(company: dict) -> set[str]:
+    """Kata penanda merek: kata nama perusahaan, singkatannya (Bank Central Asia -> bca), kode, dan slug."""
+    words = [w for w in re.findall(r"[a-z0-9]+", (company.get("nama") or "").lower()) if w not in GENERIC_WORDS]
+    out = {w for w in words if len(w) >= 3}
+    if len(words) >= 2:
+        out.add("".join(w[0] for w in words[:4]))
+        if words[0] == "bank" and len(words) >= 3:
+            out.add("".join(w[0] for w in words[1:4]))
+    for extra in (company.get("kode"), company.get("slug"), company.get("label")):
+        if extra:
+            out |= {w for w in re.findall(r"[a-z0-9]+", str(extra).lower()) if len(w) >= 3}
+    return out - {"bank"}
+
+
+def logo_pages(company: dict) -> list[str]:
+    """Halaman yang dibuka untuk mencari logo: beranda, halaman lowongan di platformnya, lalu situs karier."""
+    slug = company.get("slug")
+    board = {
+        "lever": f"https://jobs.lever.co/{slug}",
+        "greenhouse": f"https://job-boards.greenhouse.io/{slug}",
+        "workable": f"https://apply.workable.com/{slug}/",
+        "smartrecruiters": f"https://careers.smartrecruiters.com/{slug}",
+    }.get((company.get("ats") or "").lower()) if slug else None
+    pages = [company.get("web"), board, company.get("url"), *(company.get("situs") or [])[:2]]
+    seen: list[str] = []
+    for url in pages:
+        if url and url not in seen:
+            seen.append(url)
+    return seen
+
+
 def find_logo(company: dict) -> str:
-    """Logo resmi perusahaan: dari berandanya, atau dari situs kariernya bila beranda tidak bisa dibuka."""
-    for url in [company.get("web"), *(company.get("situs") or [])[:1]]:
-        if not url:
-            continue
+    """Logo resmi perusahaan yang benar-benar bisa ditampilkan.
+
+    Kandidat diambil dari ikon situs (apple-touch-icon dan ikon besar), logo di JSON-LD, gambar ber-"logo" di
+    halaman, dan og:image yang berupa logo. Setiap kandidat diunduh dulu: harus gambar sungguhan, tidak terlalu
+    kecil, dan bukan logo putih (yang tak terlihat di kotak logo berlatar putih).
+    """
+    words = brand_words(company)
+    tried: set[str] = set()
+    if (company.get("ats") or "").lower() == "workable" and company.get("slug"):
+        try:  # API akun Workable memuat logo yang diunggah perusahaan
+            data = get_json(f"https://apply.workable.com/api/v1/accounts/{company['slug']}")
+            url = (data or {}).get("logo") if isinstance(data, dict) else ""
+            if url and usable_logo(url):
+                return url
+        except Exception:  # noqa: BLE001
+            pass
+    for page_url in logo_pages(company):
         try:
-            found = _logo_from(url)
+            page, final = _logo_page(page_url)
         except Exception:  # noqa: BLE001
             continue
-        if found:
-            return found
+        checked = 0
+        for score, url in logo_candidates(page, final, words):
+            if score < LOGO_MIN_PX or url in tried:
+                continue
+            if checked >= LOGO_TRIES:
+                break
+            tried.add(url)
+            checked += 1
+            if usable_logo(url):
+                return url
     return ""
 
 
-def _logo_from(web: str) -> str:
-    """apple-touch-icon, ikon besar, logo di JSON-LD, atau gambar logo di header halaman."""
-    page, final = get_text(web)
-    found: list[tuple[int, str]] = []
+def _logo_page(url: str) -> tuple[str, str]:
+    _, final, ctype, body = request(url, tries=1, timeout=15)
+    return _decode(body, ctype), final
+
+
+def logo_candidates(page: str, final: str, words: set[str] | None = None) -> list[tuple[int, str]]:
+    """Kandidat logo di satu halaman, terurut dari yang paling meyakinkan. Skor kira-kira setara ukuran piksel."""
+    words = words or set()
+    found: dict[str, int] = {}
+
+    def add(score: int, url: str, hint: str = "") -> None:
+        url = urljoin(final, html.unescape(url.strip()).replace("\\/", "/"))
+        if not url.startswith("http") or LOGO_SKIP.search(url.split("?")[0]) or LOGO_SKIP.search(hint):
+            return
+        name = (url.split("?")[0].rsplit("/", 1)[-1] + " " + hint).lower()
+        if any(w in name for w in words):
+            score += 30  # nama merek di nama berkas atau teks alt: hampir pasti logo perusahaan ini
+        found[url] = max(found.get(url, 0), score)
+
     for tag in re.findall(r"<link\b[^>]*>", page, re.I):
         rel = re.search(r'rel=["\']([^"\']+)', tag, re.I)
         href = re.search(r'href=["\']([^"\']+)', tag, re.I)
-        if not rel or not href or "icon" not in rel.group(1).lower():
+        if not rel or not href or "icon" not in rel.group(1).lower() or "mask" in rel.group(1).lower():
             continue
-        url = urljoin(final, html.unescape(href.group(1).strip()))
+        kind = rel.group(1).lower()
         size = re.search(r'sizes=["\'](\d+)x\d+', tag, re.I)
-        score = int(size.group(1)) if size else (180 if "apple" in rel.group(1).lower() else 0)
-        if url.lower().split("?")[0].endswith(".svg"):
+        score = int(size.group(1)) if size else (180 if "apple" in kind else 0)
+        if href.group(1).lower().split("?")[0].endswith(".svg"):
             score = max(score, 256)
-        if "apple" in rel.group(1).lower():
+        if "apple" in kind:
             score += 40
-        found.append((score, url))
+        add(score, href.group(1))
     for block in JSONLD.findall(page):
         m = re.search(r'"logo"\s*:\s*(?:\{[^}]*?"url"\s*:\s*)?"([^"]+)"', block)
         if m:
-            found.append((150, urljoin(final, m.group(1).replace("\\/", "/"))))
+            add(150, m.group(1))
+    for tag in re.findall(r"<meta\b[^>]*>", page, re.I):
+        if re.search(r'(property|name)=["\'](og:image|twitter:image)["\']', tag, re.I):
+            content = re.search(r'content=["\']([^"\']+)', tag, re.I)
+            if content and "logo" in content.group(1).lower():
+                add(120, content.group(1))
+    order = 0
     for tag in re.findall(r"<img\b[^>]*>", page, re.I):
-        src = re.search(r'src=["\']([^"\']+\.(?:svg|png|webp)(?:\?[^"\']*)?)["\']', tag, re.I)
-        if src and re.search(r'(class|id|alt)=["\'][^"\']*logo|/logo', tag, re.I):
-            found.append((100, urljoin(final, html.unescape(src.group(1)))))
-            break
-    best = max(found, default=(0, ""))
-    # Favicon 16-32 px terlalu buram untuk kotak logo; lebih rapi pakai inisial.
-    return best[1] if best[0] >= 64 else ""
+        src = re.search(r'\b(?:data-)?src=["\']([^"\'\s]+)["\']', tag, re.I)
+        if not src or src.group(1).startswith("data:"):
+            continue
+        attrs = " ".join(re.findall(r'\b(?:class|id|alt|title)=["\']([^"\']*)["\']', tag, re.I))
+        path = src.group(1).split("?")[0].lower()
+        if "logo" not in attrs.lower() and "logo" not in path and "brand" not in attrs.lower():
+            continue
+        if not re.search(r"\.(svg|png|webp|jpe?g|gif)$", path) and "rmkcdn" not in path and "/documents/" not in path:
+            continue
+        add(100 - min(order, 10) * 2, src.group(1), attrs)
+        order += 1
+    return sorted(((s, u) for u, s in found.items()), key=lambda x: -x[0])
+
+
+def image_size(body: bytes) -> tuple[int, int] | None:
+    """(lebar, tinggi) gambar PNG/GIF/JPEG/WebP/ICO dari isinya, tanpa pustaka tambahan."""
+    if body[:8] == b"\x89PNG\r\n\x1a\n" and len(body) >= 24:
+        return int.from_bytes(body[16:20], "big"), int.from_bytes(body[20:24], "big")
+    if body[:6] in (b"GIF87a", b"GIF89a"):
+        return int.from_bytes(body[6:8], "little"), int.from_bytes(body[8:10], "little")
+    if body[:4] == b"RIFF" and body[8:12] == b"WEBP":
+        chunk = body[12:16]
+        if chunk == b"VP8X":
+            return int.from_bytes(body[24:27], "little") + 1, int.from_bytes(body[27:30], "little") + 1
+        if chunk == b"VP8L":
+            bits = int.from_bytes(body[21:25], "little")
+            return (bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1
+        if chunk == b"VP8 ":
+            return int.from_bytes(body[26:28], "little") & 0x3FFF, int.from_bytes(body[28:30], "little") & 0x3FFF
+    if body[:4] == b"\x00\x00\x01\x00":
+        count = int.from_bytes(body[4:6], "little")
+        sizes = [(body[6 + i * 16] or 256, body[7 + i * 16] or 256) for i in range(min(count, 32)) if 8 + i * 16 <= len(body)]
+        return max(sizes, default=(0, 0))
+    if body[:2] == b"\xff\xd8":
+        i = 2
+        while i + 9 < len(body):
+            if body[i] != 0xFF:
+                i += 1
+                continue
+            marker = body[i + 1]
+            if marker in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
+                return int.from_bytes(body[i + 7:i + 9], "big"), int.from_bytes(body[i + 5:i + 7], "big")
+            if marker in (0xD8, 0x01) or 0xD0 <= marker <= 0xD7:
+                i += 2
+                continue
+            i += 2 + int.from_bytes(body[i + 2:i + 4], "big")
+    return None
+
+
+def svg_is_white(svg: str) -> bool:
+    """Benar bila semua warna yang dipakai SVG putih: logo untuk latar gelap, tidak terlihat di kotak putih."""
+    colors = re.findall(r'(?:fill|stroke|stop-color|color)\s*[:=]\s*["\']?\s*(rgba?\([^)]*\)|#[0-9a-fA-F]{3,8}|[a-zA-Z]+)',
+                        svg)
+    seen = {re.sub(r"\s+", "", c.lower()) for c in colors} - {"none", "transparent", "currentcolor", "inherit", "url"}
+    seen = {re.sub(r"^rgba\((\d+,\d+,\d+),[\d.]+\)$", r"rgb(\1)", c) for c in seen}
+    return bool(seen) and seen <= WHITE
+
+
+def usable_logo(url: str) -> bool:
+    """Logo bisa dipakai: berkas gambar sungguhan, cukup besar, dan bukan logo putih."""
+    try:
+        status, _, ctype, body = request(url, headers={"Accept": "image/avif,image/webp,image/svg+xml,image/*,*/*;q=0.8"},
+                                         tries=1, timeout=15)
+    except Exception:  # noqa: BLE001
+        return False
+    if status >= 400 or len(body) < 100:
+        return False
+    head = body[:600].lstrip().lower()
+    if b"<svg" in head or b"<?xml" in head[:10] or "svg" in (ctype or "").lower():
+        svg = body.decode("utf-8", errors="replace")
+        return "<svg" in svg.lower() and not svg_is_white(svg)
+    if head.startswith((b"<!doctype", b"<html")) or "html" in (ctype or "").lower():
+        return False
+    size = image_size(body)
+    if size is None:
+        return (ctype or "").lower().startswith("image/")  # format lain (mis. AVIF): percayakan pada jenis berkasnya
+    return max(size) >= LOGO_MIN_PX
 
 
 def source_key(company: dict) -> str:

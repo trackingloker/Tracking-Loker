@@ -292,7 +292,11 @@
   ],
   "ats": "successfactors",
   "url": "https://careers.xlsmart.co.id",
-  "lokasi": ""
+  "lokasi": "",
+  "alias": [
+   "PT XL Axiata Tbk",
+   "XL SMART"
+  ]
  },
  {
   "kode": "TOWR",

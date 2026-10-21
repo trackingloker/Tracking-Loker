@@ -82,6 +82,8 @@ Banyak perusahaan besar, terutama bank, BUMN, dan grup konglomerasi, lebih serin
 
 Perusahaan besar umumnya memakai sistem rekrutmen yang sama, jadi satu pembaca melayani banyak perusahaan: Workday, SAP SuccessFactors, Oracle Recruiting Cloud, SmartRecruiters, Workable, Radancy, Greenhouse, Lever, Ashby, dan situs apa pun yang memasang data lowongan standar schema.org `JobPosting`. Hanya lowongan berlokasi di Indonesia yang diambil. Pembacanya ada di [`karier.py`](karier.py).
 
+Deskripsi lowongan diambil sekali dari halaman lowongannya, termasuk lowongan yang dipasang sebagai dokumen PDF, lalu disimpan di folder `detail/`. Logo perusahaan dicari dari situs resminya dan dari halaman lowongannya di Lever, Greenhouse, Workable, atau SuccessFactors. Setiap logo diunduh dulu untuk memastikan gambarnya bisa tampil, cukup besar, dan bukan versi putih untuk latar gelap. Lowongan Karirhub dari perusahaan yang sama, termasuk kantor cabangnya, ikut memakai logo resmi itu.
+
 Untuk menambah atau memeriksa perusahaan, jalankan workflow **Cek situs karier** di tab Actions. Workflow ini membuka situs karier semua perusahaan, mendeteksi sistem rekrutmen yang dipakai, mencoba menarik lowongannya, lalu menyimpan laporannya di `cek-karier.json` tanpa mengubah data lowongan. Bisa juga dijalankan untuk beberapa emiten saja dengan mengisi kodenya, misalnya `BBCA,TLKM`.
 
 Setiap penarikan dicatat di `stats.json` (lowongan aktif, baru, dan ditutup per hari) sehingga tren pasar kerja terbentuk dengan sendirinya. Bila satu sumber gagal ditarik, lowongan lamanya tetap ditampilkan sampai sumber itu kembali, jadi situs tidak pernah tiba-tiba kosong.
@@ -94,7 +96,7 @@ Lowongan resmi tidak pernah memungut biaya. Tracking Loker mengingatkan hal ini 
 
 ## Dibangun dengan
 
-Python (pustaka standar) · GitHub Actions · HTML semantik · JavaScript · GitHub Pages · PDF.js · Mammoth · Google Sans Flex
+Python (pustaka standar, pypdf) · GitHub Actions · HTML semantik · JavaScript · GitHub Pages · PDF.js · Mammoth · Google Sans Flex
 
 ---
 
