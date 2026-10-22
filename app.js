@@ -33,7 +33,7 @@ const MOODS = [
   { tone: 'yellow', title: 'Gaji di atas 5 juta', unit: 'lowongan', icon: 'coin', img: 'foto-perawat.webp', fit: 'right:7%', patch: { gaji: '5' } },
   // Dari kualifikasi lowongannya: terbuka untuk lulusan baru / tanpa pengalaman, atau program MT/ODP.
   { tone: 'purple', title: 'Fresh graduate', unit: 'lowongan', icon: 'heart', img: 'foto-fresh-graduate.webp', fit: 'right:4%', patch: { kat: 'fresh' } },
-  { tone: 'orange', title: 'Management trainee', unit: 'program', icon: 'star', img: 'foto-management-trainee.webp', fit: 'right:0', patch: { kat: 'mt' } }
+  { tone: 'orange', title: 'Management trainee', unit: 'program', icon: 'star', img: 'foto-management-trainee.webp', fit: 'right:0;height:78%;max-width:80%', patch: { kat: 'mt' } }
 ];
 
 function todayMessage() {
