@@ -510,9 +510,9 @@ function readLevel(eduLines, now) {
 const MAJOR_EXTRA = {
   'Akuntansi': ['accounting', 'accountancy', 'bachelor of accounting', 'akuntansi sektor publik', 'akuntansi syariah', 'akuntansi perpajakan', 'perpajakan', 'komputerisasi akuntansi', 'akuntansi keuangan', 'akuntansi keuangan lembaga', 'akl'],
   'Manajemen': ['management', 'manajemen bisnis', 'business administration', 'administrasi bisnis', 'business management', 'manajemen ritel', 'bisnis digital', 'digital business', 'manajemen keuangan', 'ilmu manajemen', 'bisnis manajemen'],
-  'Ekonomi & Perbankan': ['economics', 'development economics', 'economic development', 'ilmu ekonomi', 'ekonomi pembangunan', 'studi pembangunan', 'economics and development studies', 'islamic economics', 'business economics', 'ekonomi bisnis', 'perbankan', 'banking', 'banking and finance', 'keuangan dan perbankan', 'perbankan syariah', 'ekonomi syariah', 'ekonomi islam', 'aktuaria', 'actuarial'],
+  'Ekonomi & Perbankan': ['economics', 'development economics', 'economic development', 'ilmu ekonomi', 'ekonomi pembangunan', 'studi pembangunan', 'economics and development studies', 'islamic economics', 'business economics', 'ekonomi bisnis', 'perbankan', 'banking', 'banking and finance', 'keuangan dan perbankan', 'perbankan syariah', 'ekonomi syariah', 'ekonomi islam'],
   'Teknik Informatika': ['informatics', 'informatics engineering', 'computer science', 'information systems', 'information technology', 'sistem informasi', 'teknologi informasi', 'ilmu komputer', 'teknik komputer', 'rekayasa perangkat lunak', 'software engineering', 'data science', 'sains data', 'teknik komputer dan jaringan', 'teknik komputer jaringan', 'tkj', 'rpl', 'manajemen informatika', 'teknik informatika', 'informatika', 'sistem informasi akuntansi', 'computer engineering'],
-  'Desain Komunikasi Visual': ['visual communication design', 'graphic design', 'desain grafis', 'multimedia', 'animasi', 'desain produk', 'product design', 'seni rupa', 'fine arts', 'film dan televisi', 'desain komunikasi visual', 'dkv', 'desain grafika'],
+  'Desain Komunikasi Visual': ['visual communication design', 'graphic design', 'desain grafis', 'multimedia', 'animasi', 'desain produk', 'product design', 'seni rupa', 'fine arts', 'desain komunikasi visual', 'dkv', 'desain grafika'],
   'Ilmu Komunikasi': ['communication', 'communications', 'communication science', 'ilmu komunikasi', 'jurnalistik', 'public relations', 'hubungan masyarakat', 'penyiaran', 'broadcasting', 'komunikasi dan penyiaran islam'],
   'Pemasaran': ['marketing', 'digital marketing', 'manajemen pemasaran', 'bisnis daring dan pemasaran', 'bdp', 'pemasaran', 'marketing communication', 'pemasaran digital'],
   'Teknik Mesin': ['mechanical engineering', 'teknik mesin', 'teknik pemesinan', 'teknik pengelasan', 'mekatronika', 'mechatronics', 'teknik manufaktur', 'teknik mesin industri'],
@@ -520,7 +520,7 @@ const MAJOR_EXTRA = {
   'Teknik Elektro': ['electrical engineering', 'teknik elektro', 'teknik elektronika', 'elektronika industri', 'teknik listrik', 'titl', 'teknik telekomunikasi', 'telecommunication engineering', 'teknik instalasi tenaga listrik', 'teknik audio video', 'teknik elektronika industri', 'teknik ketenagalistrikan', 'teknik energi'],
   'Teknik Sipil & Arsitektur': ['civil engineering', 'teknik sipil', 'arsitektur', 'architecture', 'desain interior', 'interior design', 'dpib', 'desain pemodelan dan informasi bangunan', 'teknik konstruksi', 'teknik bangunan', 'perencanaan wilayah', 'planologi', 'urban planning', 'teknik geodesi', 'geodesi', 'geomatika', 'teknik konstruksi gedung'],
   'Teknik Industri': ['industrial engineering', 'teknik industri', 'manajemen industri', 'teknik manajemen industri'],
-  'Kimia': ['chemistry', 'chemical engineering', 'teknik kimia', 'kimia analis', 'analis kimia', 'kimia industri', 'kimia murni', 'biologi', 'biology', 'bioteknologi', 'biotechnology', 'mikrobiologi'],
+  'Kimia': ['chemistry', 'chemical engineering', 'teknik kimia', 'kimia analis', 'analis kimia', 'kimia industri', 'kimia murni'],
   'Pertambangan & Geologi': ['mining engineering', 'teknik pertambangan', 'pertambangan', 'geology', 'geological engineering', 'teknik geologi', 'geologi', 'petroleum engineering', 'teknik perminyakan', 'geofisika', 'geophysics', 'teknik geofisika', 'teknik metalurgi', 'metallurgical engineering', 'geologi pertambangan'],
   'Logistik & Transportasi': ['logistics', 'manajemen logistik', 'teknik logistik', 'supply chain', 'supply chain management', 'manajemen transportasi', 'transportasi', 'logistik', 'manajemen rantai pasok'],
   'Psikologi & SDM': ['psychology', 'psikologi', 'manajemen sumber daya manusia', 'human resource management', 'msdm', 'manajemen sdm'],
@@ -536,7 +536,11 @@ const MAJOR_EXTRA = {
   'Pertanian & Peternakan': ['agriculture', 'agribisnis', 'agribusiness', 'agroteknologi', 'agronomi', 'agroekoteknologi', 'peternakan', 'animal science', 'perikanan', 'fisheries', 'kehutanan', 'forestry', 'teknologi pangan', 'food technology', 'ilmu dan teknologi pangan', 'teknologi hasil pertanian', 'agrikultur', 'agribisnis tanaman', 'agribisnis ternak', 'teknologi industri pertanian', 'budidaya perairan'],
   'Administrasi Perkantoran': ['administrasi perkantoran', 'otkp', 'mplb', 'manajemen perkantoran', 'manajemen perkantoran dan layanan bisnis', 'office administration', 'kesekretariatan', 'administrasi niaga', 'administrasi publik', 'public administration', 'ilmu administrasi negara', 'administrasi negara', 'ilmu administrasi publik', 'otomatisasi dan tata kelola perkantoran'],
   'Tata Busana & Fashion': ['tata busana', 'fashion design', 'desain mode', 'tekstil', 'textile', 'fashion', 'desain fashion', 'kriya tekstil'],
-  'Pelayaran': ['nautika', 'teknika', 'pelayaran', 'kepelautan', 'teknik perkapalan', 'naval architecture', 'nautical', 'nautika kapal niaga', 'teknika kapal niaga']
+  'Pelayaran': ['nautika', 'teknika', 'pelayaran', 'kepelautan', 'teknik perkapalan', 'naval architecture', 'nautical', 'nautika kapal niaga', 'teknika kapal niaga'],
+  'Matematika & Statistika': ['actuarial', 'actuarial science', 'applied mathematics'],
+  'Biologi & Bioteknologi': ['microbiology', 'biochemistry'],
+  'Seni, Film & Musik': ['film and television', 'music', 'performing arts'],
+  'Ilmu Sosial & Politik': ['political science', 'sociology', 'anthropology', 'social welfare']
 };
 // Jurusan di luar daftar: arahkan ke bidang yang paling dekat.
 const MAJOR_TO_CLUSTERS = [
@@ -546,7 +550,11 @@ const MAJOR_TO_CLUSTERS = [
   { label: 'Studi Agama', re: /(^|[^a-z])(studi islam|ilmu al-?quran|tafsir|dakwah|ushuluddin|syariah)(?![a-z])/, clusters: ['mengajar', 'admin'] }
 ];
 const majorRes = MAJORS.map((m) => {
-  const generic = new Set(['pendidikan', 'it', 'ti', 'tp', 'design', 'desain', 'bisnis', 'business', 'industri', 'administrasi', 'bahasa', 'english', 'hotel', 'interior', 'bangunan', 'konstruksi', 'mesin', 'medical', 'hr', 'hrd', 'sdm', 'k3', 'perawat', 'dokter', 'apoteker', 'arsitek', 'bidan', 'akuntan', 'pajak', 'tambang', 'mining', 'perminyakan', 'migas', 'sipil', 'civil', 'elektro', 'electrical', 'mechanical', 'chemical', 'kimia', 'law', 'sekretaris', 'fashion', 'busana', 'dokter gigi', 'dokter hewan', 'tourism']);
+  const generic = new Set(['pendidikan', 'it', 'ti', 'tp', 'design', 'desain', 'bisnis', 'business', 'industri', 'administrasi', 'bahasa', 'english', 'hotel', 'interior', 'bangunan', 'konstruksi', 'mesin', 'medical', 'hr', 'hrd', 'sdm', 'k3', 'perawat', 'dokter', 'apoteker', 'arsitek', 'bidan', 'akuntan', 'pajak', 'tambang', 'mining', 'perminyakan', 'migas', 'sipil', 'civil', 'elektro', 'electrical', 'mechanical', 'chemical', 'kimia', 'law', 'sekretaris', 'fashion', 'busana', 'dokter gigi', 'dokter hewan', 'tourism',
+    'keuangan', 'ekonomi', 'asuransi', 'olahraga', 'musik', 'kecantikan', 'estetika', 'perpustakaan', 'penerbangan', 'kewirausahaan', 'e-commerce',
+    'periklanan', 'jurnalisme', 'statistik', 'sejarah', 'geografi', 'kriya', 'mice', 'ulp', 'pwk', 'tlm', 'msdm', 'pplg', 'sija', 'tjkt', 'tkro', 'tptu',
+    'tflm', 'atph', 'rmik', 'ppkn', 'pgmi', 'pjkr', 'mathematics', 'statistics', 'physics', 'biology', 'aviation', 'cosmetology', 'teologi', 'tafsir', 'dakwah',
+    'pramugari', 'awak kabin', 'metalurgi', 'geodesi', 'planologi', 'kepabeanan', 'patiseri', 'perkebunan', 'hortikultura', 'akuakultur', 'tata hidang']);
   const names = [...m.aka.filter((a) => !generic.has(a)), fold(m.label), ...(MAJOR_EXTRA[m.label] || [])];
   return { m, re: wordRe(names) };
 });
@@ -586,14 +594,20 @@ function readMajor(eduLines, allLines) {
   const names = new Map();
   let ranked = scan(eduLines);
   if (!ranked.length) ranked = scan(allLines.filter((l) => MAJOR_LINE.test(fold(l))));
+  // Jurusan yang dulu di luar daftar (Statistika, Fisika, Ilmu Sosial, Studi Agama) tetap menambah bobot bidang terdekatnya.
+  const boostOf = (label) => (MAJOR_TO_CLUSTERS.find((x) => x.label === label) || {}).clusters;
   if (ranked.length) {
     const label = ranked[0][0];
-    return { label, name: majorName(names.get(label), label), also: ranked.slice(1, 2).filter(([, s]) => s >= ranked[0][1] * 0.6).map(([l]) => l) };
+    return { label, name: majorName(names.get(label), label), also: ranked.slice(1, 2).filter(([, s]) => s >= ranked[0][1] * 0.6).map(([l]) => l),
+      boost: boostOf(label) };
   }
   const text = fold(eduLines.concat(allLines.filter((l) => MAJOR_LINE.test(fold(l)))).join(' '));
   for (const x of MAJOR_TO_CLUSTERS) {
     const m = x.re.exec(text);
-    if (m) return { label: x.label, name: majorName(m[2], x.label), clusters: x.clusters };
+    if (!m) continue;
+    const listed = MAJORS.some((y) => y.label === x.label);
+    return listed ? { label: x.label, name: majorName(m[2], x.label), boost: x.clusters }
+      : { label: x.label, name: majorName(m[2], x.label), clusters: x.clusters };
   }
   return null;
 }
@@ -860,8 +874,8 @@ export function readCV(lines, places = [], now = Math.floor(Date.now() / 1000), 
   sigList = sigList.filter((x) => x.w >= 2);
   const top = Math.max(0, ...sigList.map((x) => x.w));
   if (top > 14) sigList.forEach((x) => { x.w = Math.max(1.5, x.w * 14 / top); });
-  if (major && major.clusters) {
-    for (const id of major.clusters) {
+  if (major && (major.clusters || major.boost)) {
+    for (const id of major.clusters || major.boost) {
       let x = sigList.find((y) => y.id === id);
       if (!x) { x = { id, w: 0, src: {} }; sigList.push(x); }
       x.w += 3.5;

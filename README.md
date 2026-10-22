@@ -86,6 +86,10 @@ Deskripsi lowongan diambil sekali dari halaman lowongannya, termasuk lowongan ya
 
 Untuk menambah atau memeriksa perusahaan, jalankan workflow **Cek situs karier** di tab Actions. Workflow ini membuka situs karier semua perusahaan, mendeteksi sistem rekrutmen yang dipakai, mencoba menarik lowongannya, lalu menyimpan laporannya di `cek-karier.json` tanpa mengubah data lowongan. Bisa juga dijalankan untuk beberapa emiten saja dengan mengisi kodenya, misalnya `BBCA,TLKM`.
 
+### Disnakerja
+
+Tracking Loker juga membaca [Disnakerja](https://www.disnakerja.com), situs info lowongan yang setiap artikelnya berisi satu perusahaan dengan satu atau beberapa posisi. Setiap posisi menjadi satu lowongan: nama posisi, perusahaan, lokasi, pendidikan minimal, tipe kerja, dan tanggal terbit. Isi artikelnya tidak disalin; tombol di detail lowongan membuka artikel aslinya untuk membaca kualifikasi dan cara melamar. Hanya artikel 30 hari terakhir yang diambil, `robots.txt` situsnya dipatuhi, dan artikel yang sudah dibaca tidak dibuka lagi kecuali diperbarui (catatannya di `detail/_disnakerja.json`). Untuk memeriksa pembacanya, jalankan workflow **Cek situs karier** dengan isian `disnakerja`.
+
 Setiap penarikan dicatat di `stats.json` (lowongan aktif, baru, dan ditutup per hari) sehingga tren pasar kerja terbentuk dengan sendirinya. Bila satu sumber gagal ditarik, lowongan lamanya tetap ditampilkan sampai sumber itu kembali, jadi situs tidak pernah tiba-tiba kosong.
 
 Gaji ditampilkan apa adanya dari sumber, dalam rupiah per bulan. Hanya sekitar 15% lowongan yang mencantumkan gaji, dan angka median dihitung dari lowongan tersebut saja. Angka di bawah Rp500 ribu, yang biasanya upah harian atau per paket, tidak dihitung sebagai gaji bulanan. Lokasi yang hanya berupa kecamatan dilengkapi kota dan provinsinya dari halaman detail lowongan bila tersedia.

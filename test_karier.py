@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlsplit
 
+import disnakerja
 import karier
 import update
 
@@ -697,3 +698,129 @@ class TestPenarikanHarian(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+DK_POST = """<html><head>
+<meta property="og:image" content="https://www.disnakerja.com/wp-content/uploads/2026/10/logo-sanbe-farma.png">
+<script type="application/ld+json">{"@graph":[{"@type":"Article","datePublished":"2026-10-17T08:00:00+07:00"}]}</script>
+</head><body><aside><h3>Fresh Graduate</h3><a href="https://www.disnakerja.com/pt-lain/">PT Lain</a></aside>
+<h1 class="entry-title">Lowongan Kerja PT Sanbe Farma</h1>
+<ul class="meta"><li><b>Lokasi</b> Jawa Barat</li><li><b>Tipe Pekerjaan</b> Full Time</li>
+<li><b>Pendidikan</b> SMA/K, Diploma III, Strata 1</li></ul>
+<div class="entry-content"><p>PT Sanbe Farma adalah perusahaan farmasi.</p>
+<h3>1. Recruitment Administration [URGENT]</h3><ul><li>Pendidikan minimal S1 Psikologi</li><li>Penempatan: Karawang</li></ul>
+<h3>Operator Produksi</h3><ul><li>Pendidikan minimal SMA/SMK sederajat</li><li>Bersedia dikontrak (kontrak 1 tahun)</li></ul>
+<h3>Cara Melamar</h3><p>Kirim CV ke email. Batas lamaran 30 Oktober 2026.</p></div>
+<h3>Info Lowongan Lainnya</h3><ul><li><a href="https://www.disnakerja.com/pt-x/">PT X</a></li></ul><footer>(c)</footer></body></html>"""
+DK_LINK = "https://www.disnakerja.com/lowongan-kerja-pt-sanbe-farma/"
+
+
+class TestDisnakerja(Base):
+    def routes(self, modified="2026-10-17T02:00:00", api=True, robots="User-agent: *\nDisallow: /wp-admin/\n"):
+        posts = [{"link": DK_LINK, "date_gmt": "2026-10-17T01:00:00", "modified_gmt": modified},
+                 {"link": "https://www.disnakerja.com/blog/tips-wawancara/", "date_gmt": "2026-10-17T01:00:00", "modified_gmt": ""},
+                 {"link": "https://www.disnakerja.com/pt-lama/", "date_gmt": "2026-08-01T01:00:00", "modified_gmt": ""}]
+        routes = {"disnakerja.com/robots.txt": lambda u, b: (robots, "text/plain"),
+                  "disnakerja.com/lowongan-kerja-pt-sanbe-farma/": lambda u, b: (DK_POST, "text/html")}
+        if api:
+            routes["disnakerja.com/wp-json/wp/v2/posts"] = lambda u, b: posts if "page=1&" in u else HTTPError(u, 400, "x", {}, BytesIO())
+        else:
+            routes["disnakerja.com/page/"] = lambda u, b: HTTPError(u, 404, "x", {}, BytesIO())
+            routes["www.disnakerja.com/"] = lambda u, b: (f'<a href="{DK_LINK}">Sanbe</a><a href="https://www.disnakerja.com/category/bumn/">BUMN</a>',
+                                                         "text/html")
+        return routes
+
+    def test_artikel_jadi_lowongan_per_posisi(self):
+        http = self.use(self.routes())
+        jobs, whole, info, notes = disnakerja.fetch(REFS, {}, NOW, {})
+        self.assertTrue(whole)
+        self.assertEqual(info["cara"], "api")
+        by_title = {j["title"]: j for j in jobs}
+        self.assertEqual(sorted(by_title), ["Operator Produksi", "Recruitment Administration [URGENT]"])
+        admin, op = by_title["Recruitment Administration [URGENT]"], by_title["Operator Produksi"]
+        self.assertEqual((admin["company"], admin["platform"], admin["via"], admin["link"]),
+                         ("PT Sanbe Farma", "Disnakerja", "disnakerja", DK_LINK))
+        self.assertEqual((admin["city"], admin["province"]), ("Kab. Karawang", "Jawa Barat"))  # dari "Penempatan"
+        self.assertEqual((op["city"], op["province"]), ("", "Jawa Barat"))                      # dari "Lokasi" artikel
+        self.assertEqual((admin["edu"], op["edu"]), ("Sarjana", "SMA atau Sederajat"))
+        self.assertEqual((admin["type"], op["type"]), ("Full time", "Kontrak"))
+        self.assertEqual(admin["expires"], int(datetime(2026, 10, 30, tzinfo=karier.WIB).timestamp()))
+        self.assertEqual(admin["posted"], int(datetime(2026, 10, 17, 8, 0, tzinfo=karier.WIB).timestamp()))
+        self.assertTrue(admin["logo"].endswith("logo-sanbe-farma.png"))
+        self.assertNotIn("desc", admin)  # isi artikel tidak disalin
+        opened = [u for u, _ in http.calls if "/wp-json/" not in u and "robots" not in u]
+        self.assertEqual(opened, [DK_LINK])  # artikel blog dan artikel lama tidak dibuka
+        # Penarikan berikutnya: artikel yang tidak berubah tidak dibuka lagi.
+        http.calls.clear()
+        again, whole2, _, notes2 = disnakerja.fetch(REFS, {j["id"]: j for j in jobs}, NOW, notes)
+        self.assertEqual(sorted(j["id"] for j in again), sorted(j["id"] for j in jobs))
+        self.assertFalse(any(u == DK_LINK for u, _ in http.calls))
+        # Artikel diperbarui: dibuka lagi.
+        http = self.use(self.routes(modified="2026-10-18T00:30:00"))
+        disnakerja.fetch(REFS, {j["id"]: j for j in jobs}, NOW, notes2)
+        self.assertTrue(any(u == DK_LINK for u, _ in http.calls))
+
+    def test_tanpa_api_baca_halaman_daftar(self):
+        self.use(self.routes(api=False))
+        jobs, whole, info, _ = disnakerja.fetch(REFS, {}, NOW, {})
+        self.assertEqual(info["cara"], "halaman")
+        self.assertEqual(len(jobs), 2)
+        self.assertTrue(whole)
+
+    def test_robots_dihormati(self):
+        self.use(self.routes(robots="User-agent: *\nDisallow: /\n"))
+        with self.assertRaises(RuntimeError):
+            disnakerja.fetch(REFS, {}, NOW, {})
+        self.use(self.routes(robots="User-agent: TrackingLoker\nDisallow: /\n\nUser-agent: *\nAllow: /\n"))
+        with self.assertRaises(RuntimeError):
+            disnakerja.fetch(REFS, {}, NOW, {})
+
+    def test_mode_cek(self):
+        self.use(self.routes())
+        tmp = Path(tempfile.mkdtemp())
+        old_refs = update.load_refs
+        update.load_refs = lambda: REFS
+        try:
+            self.assertEqual(update.check(tmp, NOW, "disnakerja"), 0)
+        finally:
+            update.load_refs = old_refs
+        report = json.loads((tmp / "cek-karier.json").read_text())
+        self.assertEqual(report["robots"], "boleh")
+        self.assertTrue(report["api"].startswith("ok"))
+        self.assertEqual(report["berhasil"], 1)
+        self.assertEqual(report["contoh_artikel"][0]["posisi"], ["Recruitment Administration [URGENT]", "Operator Produksi"])
+        self.assertEqual(report["contoh_artikel"][0]["meta"]["lokasi"], "Jawa Barat")
+
+    def test_penanda_halaman(self):
+        self.assertTrue(disnakerja.is_post("https://www.disnakerja.com/pt-uniflex-kemasindah/"))
+        for url in ["https://www.disnakerja.com/blog/x/", "https://www.disnakerja.com/page/2/", "https://www.disnakerja.com/category/bumn/",
+                    "https://www.disnakerja.com/wp-content/uploads/a.png", "https://example.com/pt-x/"]:
+            self.assertFalse(disnakerja.is_post(url), url)
+        self.assertEqual(disnakerja.label_value(["Lokasi Jawa Barat Pendidikan S1 Tipe Pekerjaan Full Time"], "lokasi"), "Jawa Barat")
+        self.assertEqual(disnakerja.label_value(["Pendidikan", "D3/S1"], "pendidikan"), "D3/S1")
+        self.assertEqual(disnakerja.edu_level("Pendidikan minimal D3, diutamakan S1"), "Diploma")
+
+    def test_ikut_penarikan_harian_dan_tutup_bila_artikel_hilang(self):
+        import test_update
+        tmp = Path(tempfile.mkdtemp())
+        old_fetch, old_sleep, old_portals = update.fetch, update.sleep, update.PORTALS
+        update.fetch = test_update.FakeApi([test_update.vacancy(1)])
+        update.sleep = lambda s: None
+        update.PORTALS = [disnakerja]
+        try:
+            self.use(self.routes())
+            update.run(tmp, now=NOW)
+            data = json.loads((tmp / "jobs.json").read_text())
+            self.assertEqual(data["lists"]["platform"].count("Disnakerja"), 1)
+            self.assertEqual(sum(1 for r in data["jobs"] if r[data["fields"].index("via")] == data["lists"]["via"].index("disnakerja")), 2)
+            self.assertTrue((tmp / "detail" / "_disnakerja.json").exists())
+            src = {s["name"]: s for s in data["sources"]}["Disnakerja"]
+            self.assertEqual((src["ok"], src["count"]), (True, 2))
+            # Disnakerja tidak bisa dibuka: lowongan lamanya tetap tampil.
+            self.use({"disnakerja.com/robots.txt": lambda u, b: HTTPError(u, 503, "x", {}, BytesIO())})
+            update.run(tmp, now=NOW)
+            data = json.loads((tmp / "jobs.json").read_text())
+            self.assertIn("disnakerja", data["lists"]["via"])
+            self.assertFalse({s["name"]: s for s in data["sources"]}["Disnakerja"]["ok"])
+        finally:
+            update.fetch, update.sleep, update.PORTALS = old_fetch, old_sleep, old_portals

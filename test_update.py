@@ -91,13 +91,14 @@ class FakeApi:
 
 class Base(unittest.TestCase):
     def setUp(self):
-        self._fetch, self._sleep = update.fetch, update.sleep
+        self._fetch, self._sleep, self._portals = update.fetch, update.sleep, update.PORTALS
+        update.PORTALS = []  # situs info lowongan diuji terpisah dengan respons tiruan (test_karier.TestDisnakerja)
         update.sleep = lambda s: None
         update.log = lambda msg: None
         self.dir = Path(tempfile.mkdtemp())
 
     def tearDown(self):
-        update.fetch, update.sleep = self._fetch, self._sleep
+        update.fetch, update.sleep, update.PORTALS = self._fetch, self._sleep, self._portals
 
     def use(self, api):
         update.fetch = api
@@ -333,5 +334,5 @@ if __name__ == "__main__":
 
 # Uji situs karier perusahaan (karier.py) ikut berjalan lewat "python3 -m unittest test_update" di GitHub Actions.
 from test_karier import (  # noqa: E402,F401
-    TestApiPublik, TestCek, TestDeskripsi, TestHalamanDaftar, TestHalamanHtml, TestLokasi, TestPenarikanHarian, TestWorkday,
+    TestApiPublik, TestCek, TestDeskripsi, TestDisnakerja, TestHalamanDaftar, TestHalamanHtml, TestLokasi, TestPenarikanHarian, TestWorkday,
 )

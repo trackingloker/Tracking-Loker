@@ -6,6 +6,7 @@ Sumber
   2. Situs karier perusahaan yang terdaftar di perusahaan.json: emiten besar BEI dan anak usahanya,
      lewat Greenhouse, Lever, Ashby (di sini) serta Workday, SmartRecruiters, Workable, SuccessFactors,
      Oracle, Radancy, dan data JobPosting di halaman lowongan (karier.py).
+  3. Disnakerja (disnakerja.py): info lowongan per artikel, hanya data ringkas dan tautan ke artikelnya.
 
 Hasil (ditulis di folder yang sama dengan skrip ini)
   jobs.json   lowongan aktif dalam format ringkas, dibaca situs saat dibuka
@@ -13,9 +14,9 @@ Hasil (ditulis di folder yang sama dengan skrip ini)
   stats.json  riwayat harian: total aktif, baru, ditutup
 
 Mode cek (python3 update.py --cek) memeriksa situs karier semua perusahaan di perusahaan.json dan
-menulis cek-karier.json, tanpa mengubah data lowongan.
+menulis cek-karier.json, tanpa mengubah data lowongan. Dengan --hanya disnakerja, yang diperiksa pembaca Disnakerja.
 
-Hanya memakai pustaka standar Python, jadi tidak perlu pip install di GitHub Actions.
+Hanya memakai pustaka standar Python (pypdf opsional untuk lowongan berbentuk PDF).
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
+import disnakerja
 import karier
 
 API = "https://api.kemnaker.go.id/karirhub"
@@ -55,6 +57,8 @@ DETAIL_BUDGET_SEC = 30 * 60
 # Batas waktu untuk semua situs karier perusahaan, supaya penarikan harian tetap di bawah batas GitHub Actions.
 COMPANY_BUDGET_SEC = 12 * 60
 BOARDS = {"greenhouse", "lever", "ashby"}
+# Situs info lowongan lain yang ikut ditarik (modul dengan fetch(), VIA, PLATFORM). Dikosongkan di pengujian.
+PORTALS = [disnakerja]
 # Gaji di bawah ini hampir pasti upah harian/per paket, bukan gaji bulanan.
 MIN_MONTHLY = 500_000
 TYPE_NAMES = {
@@ -890,6 +894,20 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
         complete |= whole
         sources += company_sources
 
+    for portal in PORTALS:
+        notes_path = out_dir / DETAIL_DIR / f"_{portal.VIA}.json"
+        try:
+            jobs, whole, info, notes = portal.fetch(refs, prev, now, read_json(notes_path, {}))
+            fresh += jobs
+            if whole:
+                complete.add(portal.VIA)
+            sources.append({"name": portal.PLATFORM, "jenis": "portal", "ok": True, "count": len(jobs), "complete": whole, **info})
+            (out_dir / DETAIL_DIR).mkdir(exist_ok=True)
+            write_json(notes_path, dict(sorted(notes.items())))
+        except Exception as err:  # noqa: BLE001  satu situs gagal tidak menghentikan yang lain
+            log(f"! {portal.PLATFORM} gagal: {err}")
+            sources.append({"name": portal.PLATFORM, "jenis": "portal", "ok": False, "count": 0, "error": str(err)[:200]})
+
     if not fresh:
         log("Tidak ada data yang berhasil ditarik; berkas lama tidak diubah.")
         return 1
@@ -962,6 +980,8 @@ def needs_run(out_dir: Path, now: datetime, event: str) -> bool:
 def check(out_dir: Path, now: datetime | None = None, only: str = "") -> int:
     """Periksa situs karier semua perusahaan dan tulis cek-karier.json (data lowongan tidak diubah)."""
     now = now or datetime.now(WIB)
+    if only.strip().lower() in {p.VIA for p in PORTALS}:
+        return check_portal(out_dir, now, only.strip().lower())
     companies = read_companies(out_dir / "perusahaan.json")
     if only:
         wanted = {x.strip().lower() for x in only.split(",")}
@@ -985,6 +1005,22 @@ def check(out_dir: Path, now: datetime | None = None, only: str = "") -> int:
                 best = max((u.get("indonesia", 0) for u in r.get("uji", []) if u.get("ok")), default=0)
                 fh.write(f"| {r.get('kode') or '-'} {r['nama']} | {site['status'] if site else 'gagal'} | "
                          f"{', '.join(r.get('terdeteksi', {})) or '-'} | {best} |\n")
+    return 0
+
+
+def check_portal(out_dir: Path, now: datetime, via: str) -> int:
+    """Mode cek untuk situs info lowongan (python3 update.py --cek --hanya disnakerja): tulis cek-karier.json."""
+    portal = next(p for p in PORTALS if p.VIA == via)
+    report = {"diperiksa": now.isoformat(timespec="seconds"), **portal.check(load_refs(), now)}
+    (out_dir / "cek-karier.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), "utf-8")
+    log(f"Cek {portal.PLATFORM}: {report.get('berhasil', 0)} dari {len(report.get('contoh_artikel', []))} artikel contoh "
+        f"terbaca lowongannya. Hasil di cek-karier.json")
+    step = os.environ.get("GITHUB_STEP_SUMMARY")
+    if step:
+        with open(step, "a", encoding="utf-8") as fh:
+            fh.write(f"### Cek {portal.PLATFORM} {now:%d-%m-%Y %H.%M} WIB\n\n- robots.txt: {report.get('robots')}\n"
+                     f"- API WordPress: {report.get('api')}\n- Halaman daftar: {(report.get('halaman_daftar') or {}).get('status')}\n"
+                     f"- Artikel contoh berisi lowongan: {report.get('berhasil', 0)}\n")
     return 0
 
 

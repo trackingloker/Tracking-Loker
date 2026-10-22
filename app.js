@@ -2,7 +2,7 @@
 import {
   decode, filterJobs, sortJobs, countBy, salaryBy, summarize, salaryText, juta, ribu, ago, dateText, timeText,
   karirhubUrl, initials, hue, htmlToText, filtersFromQuery, filtersToQuery, activeCount, cityLabel, fold, detailShard, yearsFrom,
-  EMPTY_FILTERS, MAJORS, findMajor, EDU_CHOICES, EDU_SHORT, EDU_LEVEL, GAJI_CHOICES, WAKTU_CHOICES, SORTS, DIRECT, KARIRHUB_DETAIL_API
+  EMPTY_FILTERS, MAJORS, findMajor, isCompanySite, buildJobSuggestions, buildMajorSuggestions, matchSuggestions, splitMatch, EDU_CHOICES, EDU_SHORT, EDU_LEVEL, GAJI_CHOICES, WAKTU_CHOICES, SORTS, DIRECT, KARIRHUB_DETAIL_API
 } from './logic.js';
 import {
   readCV, pdfLines, recommend, whyText, atsReport, keywordTips, compareJob, storable, isStrong, sourcesOf, matchMajor,
@@ -261,7 +261,7 @@ function renderControls() {
   $('#f-fn').innerHTML = optionList(countBy(filterJobs(all, f, ref, 'fn'), 'fn'), 'Semua bidang', f.fn);
 
   const bySrc = countBy(filterJobs(all, f, ref, 'src'), 'platform');
-  const direct = filterJobs(all, f, ref, 'src').filter((j) => j.via !== 'karirhub').length;
+  const direct = filterJobs(all, f, ref, 'src').filter(isCompanySite).length;
   $('#f-src').innerHTML = optionList(bySrc, 'Semua sumber', f.src === DIRECT ? '' : f.src)
     + (direct ? `<option value="${DIRECT}"${f.src === DIRECT ? ' selected' : ''}>Langsung dari situs perusahaan (${ribu(direct)})</option>` : '');
 
@@ -321,7 +321,7 @@ function renderHero() {
   if (!state.loaded) return;
   if (!state.all.length) {
     $('#hero-title').innerHTML = 'Tracking Loker sedang menyiapkan <mark>data lowongan</mark> untukmu.';
-    $('#hero-sub').textContent = 'Lowongan dari Karirhub Kemnaker dan situs karier perusahaan ditarik otomatis dua kali sehari, pagi dan malam.';
+    $('#hero-sub').textContent = 'Lowongan dari Karirhub Kemnaker, Disnakerja, dan situs karier perusahaan ditarik otomatis dua kali sehari, pagi dan malam.';
     return;
   }
   $('#hero-count').textContent = ribu(s.total);
@@ -414,7 +414,7 @@ function renderResults() {
     ? `dari ${ribu(state.all.length)} lowongan aktif · ${major ? `cocok untuk jurusan ${major.label}, dilihat dari bidang dan judul lowongan` : `bidang atau judulnya memuat "${state.f.jur}"`}`
     : n ? `dari ${ribu(state.all.length)} lowongan aktif` : 'Semua lowongan aktif, terbaru di atas';
   if (!state.all.length) {
-    listEl.innerHTML = `<li class="empty">${emptyArt('foto-kantor.webp', 'yellow')}<b>Data pertama sedang disiapkan</b><p>Lowongan dari Karirhub Kemnaker dan situs karier perusahaan ditarik otomatis dua kali sehari, pagi dan malam.</p></li>`;
+    listEl.innerHTML = `<li class="empty">${emptyArt('foto-kantor.webp', 'yellow')}<b>Data pertama sedang disiapkan</b><p>Lowongan dari Karirhub Kemnaker, Disnakerja, dan situs karier perusahaan ditarik otomatis dua kali sehari, pagi dan malam.</p></li>`;
     $('#more').hidden = true;
     return;
   }
@@ -881,7 +881,7 @@ function openJob(id) {
     ${closed ? '' : `<p class="cheer-note">${icon('heart')}<span>Semoga lolos! Baca lagi kualifikasinya dan sesuaikan CV-mu sebelum melamar.</span></p>`}
     <p class="warn-box" role="note">Lowongan resmi tidak memungut biaya apa pun. Waspadai permintaan transfer uang, biaya pelatihan, atau seragam.</p>
     <footer class="d-actions">
-      <a class="btn cta" id="apply-link" href="${esc(kh || '#')}" target="_blank" rel="noopener">Lamar di ${esc(job.via === 'karirhub' ? 'Karirhub' : job.platform)} <span class="cta-dot">${icon('arrow')}</span></a>
+      <a class="btn cta" id="apply-link" href="${esc(kh || '#')}" target="_blank" rel="noopener">${applyLabel(job)} <span class="cta-dot">${icon('arrow')}</span></a>
       <a class="btn outline" id="kh-link" href="${esc(kh)}" target="_blank" rel="noopener" hidden>Lihat di Karirhub</a>
     </footer>`;
   $('#drawer').hidden = false;
@@ -894,6 +894,13 @@ function openJob(id) {
   if (job.via === 'karirhub') loadDetail(job); else loadCompanyDetail(job);
 }
 
+// Disnakerja hanya mengumpulkan info lowongan: tombolnya membuka artikelnya, tempat cara melamar dijelaskan.
+function applyLabel(job, linked = false) {
+  if (job.via === 'disnakerja') return 'Lihat cara melamar di Disnakerja';
+  if (job.via === 'karirhub') return `Lamar di ${esc(linked ? job.platform : 'Karirhub')}`;
+  return `Lamar di ${esc(job.company)}`;
+}
+
 // Deskripsi lowongan situs perusahaan disimpan saat penarikan harian di detail/xx.json (dipecah per id).
 const detailFiles = new Map();
 async function loadCompanyDetail(job) {
@@ -903,6 +910,11 @@ async function loadCompanyDetail(job) {
   const data = await detailFiles.get(name);
   if (state.openId !== job.id || !box.isConnected) return;
   const text = data[job.id] && data[job.id].d;
+  if (!text && job.via === 'disnakerja') {
+    box.innerHTML = `<p class="d-text">Kualifikasi lengkap dan cara melamar posisi ini ada di artikel Disnakerja tentang ${esc(job.company)}. Pastikan alamat email atau situs lamarannya resmi milik perusahaan.</p>`;
+    renderCompare(job, {});
+    return;
+  }
   if (!text) {
     // Ada catatannya tapi kosong: sudah dibuka dan sumbernya memang tidak menulis deskripsi.
     box.innerHTML = data[job.id]
@@ -939,8 +951,7 @@ function setApply(job, url) {
   const a = $('#apply-link');
   if (!a || !url) return;
   a.href = url;
-  const host = job.via === 'karirhub' ? job.platform : job.company;
-  a.innerHTML = `Lamar di ${esc(host)} <span class="cta-dot">${icon('arrow')}</span>`;
+  a.innerHTML = `${applyLabel(job, true)} <span class="cta-dot">${icon('arrow')}</span>`;
   const kh = $('#kh-link');
   if (kh && kh.getAttribute('href')) kh.hidden = false;
 }
@@ -1194,6 +1205,13 @@ function renderCV() {
       <aside class="cv-side" aria-label="Saran untuk CV-mu">${atsHTML(p)}<div id="cv-tips">${tipsHTML(p)}</div></aside>
     </div>
     <section id="cv-recs" aria-labelledby="cv-recs-title"></section>`;
+  const major = $('#cv-major');
+  if (major) {
+    attachSuggest(major, {
+      items: MAJOR_SUGGESTIONS, min: 1, limits: { total: 8 }, field: major,
+      onPick: () => major.dispatchEvent(new Event('change', { bubbles: true }))
+    });
+  }
   renderRecs();
 }
 
@@ -1214,7 +1232,7 @@ function profileHTML(p) {
         ${LEVEL_OF[lab] >= 40 ? `<span class="cv-check"><input type="checkbox" id="cv-study"${p.studying ? ' checked' : ''}><label for="cv-study">Masih kuliah / belum lulus</label></span>` : ''}
       </div>
       <div class="cv-field"><label for="cv-major">Jurusan</label>
-        <input class="cv-input" id="cv-major" list="majors" autocomplete="off" placeholder="mis. Akuntansi" value="${esc(p.majorName || p.major || p.majorOther || '')}">
+        <input class="cv-input" id="cv-major" autocomplete="off" placeholder="mis. Akuntansi" value="${esc(p.majorName || p.major || p.majorOther || '')}">
         <small id="cv-major-note">${esc(majorNote(p))}</small>
       </div>
       <div class="cv-field"><label for="cv-prov">Domisili</label>
@@ -1368,16 +1386,23 @@ function bindCV() {
     }
   });
   let typing;
+  const setMajor = (v) => {
+    const m = matchMajor(v);
+    editCV({ major: m ? m.label : '', majorName: m ? m.name : v, majorOther: m ? '' : v, majorAlso: [] });
+    const note = $('#cv-major-note');
+    if (note) note.textContent = majorNote(state.cv);
+  };
   root.addEventListener('input', (e) => {
     if (e.target.id !== 'cv-major') return;
     clearTimeout(typing);
     const v = e.target.value.trim();
-    typing = setTimeout(() => {
-      const m = matchMajor(v);
-      editCV({ major: m ? m.label : '', majorName: m ? m.name : v, majorOther: m ? '' : v, majorAlso: [] });
-      const note = $('#cv-major-note');
-      if (note) note.textContent = majorNote(state.cv);
-    }, MAJORS.some((m) => m.label === v) ? 0 : 450);
+    typing = setTimeout(() => setMajor(v), 450);
+  });
+  // Jurusan dipilih dari saran: langsung dipakai.
+  root.addEventListener('change', (e) => {
+    if (e.target.id !== 'cv-major') return;
+    clearTimeout(typing);
+    setMajor(e.target.value.trim());
   });
   root.addEventListener('change', (e) => {
     const t = e.target;
@@ -1484,6 +1509,120 @@ function openFilters(open) {
 }
 
 // Kotak pencarian sedang menempel: hasil baru ditampilkan dari atas daftar.
+// Saran ketikan untuk kolom pencarian: hanya yang benar-benar melanjutkan ketikan ("ek" -> "Ekonomi", bukan "Teknik").
+const KIND_LABEL = { posisi: 'Posisi', perusahaan: 'Perusahaan' };
+function attachSuggest(input, { items, min = 1, limits, groups, onPick, field = input.closest('label') || input.parentElement }) {
+  const form = input.closest('form');
+  form.style.position ||= getComputedStyle(form).position === 'static' ? 'relative' : '';
+  const list = document.createElement('ul');
+  list.className = 'suggest';
+  list.id = `${input.id}-saran`;
+  list.setAttribute('role', 'listbox');
+  list.setAttribute('aria-label', `Saran ${input.getAttribute('aria-label') || ''}`.trim());
+  list.hidden = true;
+  form.append(list);
+  input.setAttribute('role', 'combobox');
+  input.setAttribute('aria-autocomplete', 'list');
+  input.setAttribute('aria-controls', list.id);
+  input.setAttribute('aria-expanded', 'false');
+  let shown = [];
+  let active = -1;
+
+  const close = () => {
+    list.hidden = true;
+    shown = [];
+    active = -1;
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+  };
+  const mark = (i) => {
+    active = i;
+    list.querySelectorAll('[role="option"]').forEach((li, k) => li.setAttribute('aria-selected', String(k === i)));
+    const li = i >= 0 ? $(`#${list.id}-${i}`) : null;
+    if (li) { input.setAttribute('aria-activedescendant', li.id); li.scrollIntoView({ block: 'nearest' }); } else input.removeAttribute('aria-activedescendant');
+  };
+  const place = () => {
+    const f = form.getBoundingClientRect();
+    const r = field.getBoundingClientRect();
+    const width = Math.min(Math.max(r.width, 300), f.width - 12);
+    list.style.top = `${r.bottom - f.top + 8}px`;
+    list.style.left = `${Math.max(6, Math.min(r.left - f.left, f.width - width - 6))}px`;
+    list.style.width = `${width}px`;
+    // Jangan sampai tertutup menu bawah di HP atau keluar layar.
+    const room = window.innerHeight - r.bottom - (window.innerWidth <= 820 ? 100 : 24);
+    list.style.maxHeight = `${Math.max(150, Math.min(400, room))}px`;
+  };
+  const render = () => {
+    const q = input.value;
+    const source = typeof items === 'function' ? items() : items;
+    shown = q.trim().length >= min && source ? matchSuggestions(source, q, limits) : [];
+    if (groups) shown.sort((a, b) => groups.indexOf(a.kind) - groups.indexOf(b.kind));
+    if (!shown.length) { close(); return; }
+    let last = '';
+    list.innerHTML = shown.map((it, i) => {
+      const [pre, hit, post] = splitMatch(it.label, q);
+      const head = groups && it.kind !== last ? `<li class="suggest-head" role="presentation">${KIND_LABEL[it.kind] || ''}</li>` : '';
+      last = it.kind;
+      const note = it.sub ? `<small>${esc(it.sub)}</small>` : it.count && groups ? `<small>${ribu(it.count)} lowongan</small>` : '';
+      return `${head}<li role="option" id="${list.id}-${i}" data-i="${i}" aria-selected="false"><span>${esc(pre)}<b>${esc(hit)}</b>${esc(post)}</span>${note}</li>`;
+    }).join('');
+    list.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    active = -1;
+    place();
+  };
+  const pick = (i) => {
+    const it = shown[i];
+    if (!it) return;
+    input.value = it.value;
+    close();
+    onPick(it);
+  };
+
+  input.addEventListener('input', render);
+  input.addEventListener('focus', () => { if (input.value.trim().length >= min) render(); });
+  input.addEventListener('blur', () => setTimeout(close, 120));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (list.hidden) { render(); if (list.hidden) return; }
+      e.preventDefault();
+      const n = shown.length;
+      mark(e.key === 'ArrowDown' ? (active + 1) % n : (active <= 0 ? n - 1 : active - 1));
+    } else if (e.key === 'Enter' && !list.hidden && active >= 0) {
+      e.preventDefault();
+      pick(active);
+    } else if (e.key === 'Escape' && !list.hidden) {
+      e.preventDefault();  // jangan sampai ketikan ikut terhapus
+      close();
+    } else if (e.key === 'Tab') {
+      close();
+    }
+  });
+  // mousedown supaya kolom tidak kehilangan fokus sebelum pilihan diambil
+  list.addEventListener('mousedown', (e) => e.preventDefault());
+  list.addEventListener('click', (e) => {
+    const li = e.target.closest('[role="option"]');
+    if (li) pick(+li.dataset.i);
+  });
+  list.place = place;
+  return { close };
+}
+const openSuggestLists = () => document.querySelectorAll('.suggest:not([hidden])');
+window.addEventListener('resize', () => openSuggestLists().forEach((l) => l.place && l.place()));
+window.addEventListener('scroll', () => openSuggestLists().forEach((l) => l.place && l.place()), { passive: true });
+
+let jobSuggestions = null;
+let jobSuggestionsFor = null;
+function jobSuggestionItems() {
+  if (!state.all.length) return null;
+  if (jobSuggestionsFor !== state.all) {
+    jobSuggestions = buildJobSuggestions(state.all);
+    jobSuggestionsFor = state.all;
+  }
+  return jobSuggestions;
+}
+const MAJOR_SUGGESTIONS = buildMajorSuggestions();
+
 const searchPinned = () => document.body.classList.contains('search-stuck');
 
 function bindEvents() {
@@ -1510,13 +1649,19 @@ function bindEvents() {
   $('#pasar-prov').addEventListener('change', (e) => { state.pasarProv = e.target.value; renderPasar(); });
   $('#more').addEventListener('click', showMore);
   $('#reset').addEventListener('click', () => { state.f = { ...EMPTY_FILTERS, types: [], q: state.f.q, jur: state.f.jur, sort: state.f.sort }; apply(false); });
-  $('#majors').innerHTML = MAJORS.map((m) => `<option value="${esc(m.label)}"></option>`).join('');
   $('#jur').addEventListener('input', (e) => {
     clearTimeout(typingJur);
     const v = e.target.value.trim();
-    // Pilihan dari daftar langsung dipakai; ketikan bebas ditunggu sebentar.
-    const picked = MAJORS.some((m) => m.label === v);
-    typingJur = setTimeout(() => setFilters({ jur: v }, searchPinned()), picked ? 0 : 350);
+    typingJur = setTimeout(() => setFilters({ jur: v }, searchPinned()), 350);
+  });
+  // Pilihan dari saran langsung dipakai; ketikan bebas ditunggu sebentar.
+  attachSuggest($('#jur'), {
+    items: MAJOR_SUGGESTIONS, min: 1, limits: { total: 8 },
+    onPick: (it) => { clearTimeout(typingJur); setFilters({ jur: it.value }, searchPinned()); }
+  });
+  attachSuggest($('#q'), {
+    items: jobSuggestionItems, min: 2, limits: { total: 8, perKind: { posisi: 5, perusahaan: 3 } }, groups: ['posisi', 'perusahaan'],
+    onPick: (it) => { clearTimeout(typing); setFilters({ q: it.value }, searchPinned()); }
   });
   $('#open-filters').addEventListener('click', () => openFilters(true));
   $('#filter-form').addEventListener('submit', (e) => e.preventDefault());

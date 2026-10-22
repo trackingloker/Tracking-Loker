@@ -68,6 +68,9 @@ export const SORTS = [
 ];
 
 export const DIRECT = '@perusahaan';
+// Sumber yang bukan situs karier perusahaan sendiri.
+const PORTAL_VIAS = new Set(['karirhub', 'disnakerja']);
+export const isCompanySite = (j) => !PORTAL_VIAS.has(j.via);
 
 export const EMPTY_FILTERS = Object.freeze({
   q: '', jur: '', prov: '', city: '', fn: '', types: [], edu: '', gaji: '', waktu: '', src: '', sort: ''
@@ -163,8 +166,129 @@ export const MAJORS = [
     kw: ['fashion', 'busana', 'jahit', 'penjahit', 'tailor', 'garment', 'pola', 'pattern', 'tekstil', 'textile'] },
   { label: 'Pelayaran', aka: ['pelayaran', 'nautika', 'teknika', 'kepelautan', 'perkapalan', 'teknik perkapalan'],
     fns: ['Awak Kapal Laut'],
-    kw: ['kapal', 'nautika', 'pelaut', 'seaman', 'deck', 'abk', 'vessel', 'marine', 'port captain', 'port engineer'] }
+    kw: ['kapal', 'nautika', 'pelaut', 'seaman', 'deck', 'abk', 'vessel', 'marine', 'port captain', 'port engineer'] },
+  { label: 'Matematika & Statistika', aka: ['matematika', 'statistika', 'statistik', 'aktuaria', 'ilmu aktuaria', 'matematika terapan', 'mathematics', 'statistics'],
+    fns: ['Pemrosesan Data'],
+    kw: ['data analyst', 'analis data', 'data scientist', 'statistician', 'statistik', 'statistika', 'actuary', 'actuarial', 'aktuaris', 'aktuaria', 'risk analyst',
+      'business intelligence', 'research analyst', 'quantitative', 'enumerator', 'guru matematika', 'tutor matematika', 'pengajar matematika'] },
+  { label: 'Fisika', aka: ['fisika', 'teknik fisika', 'fisika terapan', 'fisika medis', 'physics'],
+    fns: ['Laboratorium'],
+    kw: ['fisika', 'physics', 'instrumentasi', 'kalibrasi', 'calibration', 'radiasi', 'proteksi radiasi', 'fisikawan medis', 'metrologi', 'guru fisika'] },
+  { label: 'Biologi & Bioteknologi', aka: ['biologi', 'bioteknologi', 'mikrobiologi', 'biokimia', 'biologi terapan', 'biology', 'biotechnology'],
+    fns: ['Laboratorium'],
+    kw: ['biologi', 'biology', 'mikrobiologi', 'microbiology', 'bioteknologi', 'biotechnology', 'kultur jaringan', 'analis mikro', 'qc mikro', 'laboratorium',
+      'laboratory', 'analis lab', 'peneliti', 'entomolog', 'guru biologi'] },
+  { label: 'Ilmu Sosial & Politik', aka: ['ilmu politik', 'hubungan internasional', 'ilmu pemerintahan', 'sosiologi', 'antropologi', 'kesejahteraan sosial',
+    'ilmu sejarah', 'sejarah', 'geografi', 'pembangunan sosial', 'ilmu sosial', 'ilmu sosial dan politik', 'international relations'],
+    fns: [],
+    kw: ['government relation', 'public affairs', 'community development', 'comdev', 'corporate social responsibility', 'tjsl', 'pemberdayaan', 'fasilitator desa', 'peneliti',
+      'researcher', 'enumerator', 'policy', 'kebijakan', 'stakeholder', 'social worker', 'pekerja sosial', 'guru sejarah', 'guru geografi',
+      'guru sosiologi', 'guru ips'] },
+  { label: 'Studi Agama', aka: ['studi agama', 'studi islam', 'ilmu al quran dan tafsir', 'ilmu al quran', 'tafsir', 'dakwah', 'manajemen dakwah', 'ushuluddin',
+    'bimbingan penyuluhan islam', 'perbandingan agama', 'aqidah dan filsafat islam', 'teologi'],
+    fns: [],
+    kw: ['ustadz', 'ustadzah', 'ustad', 'ustazah', 'guru agama', 'guru ngaji', 'mengaji', 'tahfidz', 'tahfiz', 'al quran', 'pendidikan agama',
+      'pembimbing ibadah', 'muthawif', 'pembimbing haji', 'imam masjid', 'marbot'] },
+  { label: 'Teknik Lingkungan', aka: ['teknik lingkungan', 'ilmu lingkungan', 'rekayasa lingkungan', 'environmental engineering'],
+    fns: ['Teknik, Keselamatan'],
+    kw: ['lingkungan', 'environment', 'environmental', 'limbah', 'waste', 'amdal', 'ipal', 'wwtp', 'water treatment', 'pengolahan air', 'sanitasi',
+      'sanitation', 'k3l', 'ehs', 'emisi', 'limbah b3'] },
+  { label: 'Penerbangan', aka: ['penerbangan', 'teknik penerbangan', 'aeronautika', 'teknik dirgantara', 'aviasi', 'manajemen transportasi udara',
+    'teknik pesawat udara', 'pramugari', 'awak kabin', 'kebandarudaraan', 'manajemen bandar udara', 'teknik navigasi udara', 'aircraft maintenance', 'aviation'],
+    fns: [],
+    kw: ['pilot', 'pramugari', 'pramugara', 'flight attendant', 'cabin crew', 'ground staff', 'ground handling', 'aviation', 'avsec', 'aviation security',
+      'aircraft', 'pesawat', 'airline', 'maskapai', 'check in counter', 'apron'] },
+  { label: 'Kecantikan & Tata Rias', aka: ['tata kecantikan', 'kecantikan', 'tata rias', 'tata kecantikan kulit dan rambut', 'kecantikan kulit dan rambut',
+    'tata rias pengantin', 'kosmetologi', 'estetika', 'cosmetology'],
+    fns: [],
+    kw: ['beautician', 'beauty advisor', 'beauty consultant', 'terapis', 'therapist', 'makeup artist', 'make up artist', 'mua', 'hairdresser', 'hair stylist',
+      'kapster', 'salon', 'nail art', 'nail artist', 'eyelash', 'facial', 'klinik kecantikan', 'skincare', 'spa therapist', 'massage', 'pijat', 'barber',
+      'barberman'] },
+  { label: 'Olahraga', aka: ['olahraga', 'ilmu keolahragaan', 'keolahragaan', 'ilmu olahraga', 'pendidikan jasmani', 'penjaskes', 'pjkr',
+    'kepelatihan olahraga', 'pendidikan kepelatihan olahraga', 'sport science'],
+    fns: ['Pelatih Olahraga'],
+    kw: ['pelatih', 'personal trainer', 'instruktur senam', 'instruktur renang', 'instruktur gym', 'fitness', 'gym', 'renang', 'swimming', 'lifeguard',
+      'olahraga', 'sport', 'atlet', 'guru olahraga', 'guru penjas', 'yoga', 'pilates', 'zumba'] },
+  { label: 'Seni, Film & Musik', aka: ['seni musik', 'pendidikan seni musik', 'seni tari', 'seni teater', 'seni pertunjukan', 'film dan televisi',
+    'perfilman', 'produksi film', 'broadcasting dan perfilman', 'televisi dan film', 'seni karawitan', 'etnomusikologi', 'penciptaan musik', 'musik'],
+    fns: ['Penyiar, TV / Radio'],
+    kw: ['musik', 'music', 'musisi', 'musician', 'pianis', 'pianist', 'gitaris', 'drummer', 'vokalis', 'penyanyi', 'singer', 'guru musik', 'guru piano',
+      'guru vokal', 'penari', 'dancer', 'koreografer', 'aktor', 'aktris', 'filmmaker', 'film maker', 'sutradara', 'director of photography', 'produser', 'producer',
+      'videografer', 'videographer', 'video editor', 'editor video', 'sound engineer', 'audio engineer', 'production assistant'] },
+  { label: 'Perpustakaan & Kearsipan', aka: ['ilmu perpustakaan', 'perpustakaan', 'kearsipan', 'ilmu informasi dan perpustakaan', 'perpustakaan dan informasi',
+    'manajemen informasi dan dokumentasi', 'kearsipan digital'],
+    fns: ['Perpustakaan dan Kurator'],
+    kw: ['pustakawan', 'librarian', 'perpustakaan', 'library', 'arsip', 'arsiparis', 'archive', 'archivist', 'kearsipan', 'document control',
+      'dokumen kontrol', 'document controller', 'filing'] }
 ];
+
+// Nama jurusan lain dan kompetensi keahlian SMK, supaya saran ketikan dan pencocokan jurusan lebih lengkap.
+const MORE_AKA = {
+  'Akuntansi': ['akuntansi syariah', 'akuntansi sektor publik', 'akuntansi perpajakan', 'akuntansi keuangan', 'akuntansi dan keuangan lembaga',
+    'keuangan', 'akuntansi bisnis', 'akuntansi manajemen'],
+  'Manajemen': ['manajemen keuangan', 'manajemen ritel', 'bisnis ritel', 'bisnis retail', 'bisnis digital', 'kewirausahaan', 'ilmu manajemen',
+    'bisnis manajemen', 'manajemen perusahaan', 'bisnis internasional', 'manajemen bisnis internasional', 'manajemen operasional'],
+  'Ekonomi & Perbankan': ['ilmu ekonomi', 'ekonomi islam', 'ekonomi bisnis', 'studi pembangunan', 'asuransi', 'manajemen asuransi', 'perbankan dan keuangan',
+    'layanan perbankan', 'keuangan syariah', 'manajemen keuangan syariah', 'ekonomi'],
+  'Teknik Informatika': ['manajemen informatika', 'sains data', 'data science', 'teknik komputer dan jaringan', 'teknik jaringan komputer dan telekomunikasi',
+    'tjkt', 'pengembangan perangkat lunak dan gim', 'pplg', 'sistem informasi jaringan dan aplikasi', 'sija', 'keamanan siber', 'cyber security',
+    'teknologi rekayasa perangkat lunak', 'teknik perangkat lunak', 'sistem informasi akuntansi', 'bisnis digital informatika', 'informatika medis'],
+  'Desain Komunikasi Visual': ['desain grafika', 'teknik grafika', 'produksi grafika', 'kriya', 'desain dan produksi kriya', 'seni rupa murni',
+    'desain interaktif', 'desain grafis multimedia'],
+  'Ilmu Komunikasi': ['komunikasi dan penyiaran islam', 'periklanan', 'jurnalisme', 'komunikasi massa', 'manajemen komunikasi', 'produksi siaran'],
+  'Pemasaran': ['pemasaran digital', 'komunikasi pemasaran', 'e-commerce', 'manajemen pemasaran digital'],
+  'Teknik Mesin': ['teknik manufaktur', 'teknik mesin industri', 'teknik pendingin dan tata udara', 'teknik pendingin', 'tptu', 'teknik pengecoran logam',
+    'teknik fabrikasi logam dan manufaktur', 'teknik fabrikasi logam', 'tflm', 'teknik konversi energi', 'teknik perawatan mesin', 'teknik perancangan mesin',
+    'teknik mekanik industri', 'teknik perawatan'],
+  'Teknik Otomotif': ['teknik kendaraan ringan otomotif', 'tkro', 'teknik bisnis sepeda motor', 'teknik alat berat', 'teknik bodi otomotif',
+    'teknik ototronik', 'teknik otomotif elektronik', 'teknik mesin otomotif'],
+  'Teknik Elektro': ['teknik elektronika', 'elektronika industri', 'teknik elektronika industri', 'teknik audio video', 'teknik ketenagalistrikan',
+    'teknik energi', 'teknik otomasi industri', 'teknik pembangkit tenaga listrik', 'teknik jaringan tenaga listrik', 'teknik elektromedik',
+    'elektromedis', 'teknik instrumentasi', 'teknik kontrol', 'teknik tenaga listrik', 'teknik energi terbarukan'],
+  'Teknik Sipil & Arsitektur': ['teknik konstruksi gedung', 'teknik bangunan', 'desain pemodelan dan informasi bangunan', 'teknik geodesi', 'geodesi',
+    'geomatika', 'teknik geomatika', 'perencanaan wilayah dan kota', 'pwk', 'planologi', 'teknik konstruksi', 'teknik sipil hidro',
+    'teknik konstruksi dan perumahan', 'teknik survei dan pemetaan', 'survei dan pemetaan', 'teknik konstruksi jalan dan jembatan'],
+  'Teknik Industri': ['teknik manajemen industri', 'manajemen produksi', 'teknik industri pertanian', 'teknik sistem industri'],
+  'Kimia': ['kimia industri', 'kimia murni', 'teknik kimia industri', 'kimia analisis', 'kimia analitik', 'teknologi kimia industri', 'analis kimia industri'],
+  'Pertambangan & Geologi': ['teknik geofisika', 'geofisika', 'teknik metalurgi', 'metalurgi', 'teknik material', 'teknik material dan metalurgi',
+    'geologi pertambangan', 'teknik pengolahan migas', 'teknik produksi migas', 'teknik eksplorasi', 'teknik geologi pertambangan'],
+  'Logistik & Transportasi': ['manajemen rantai pasok', 'kepabeanan', 'kepabeanan dan cukai', 'logistik bisnis', 'teknik transportasi', 'transportasi darat',
+    'manajemen logistik dan rantai pasok'],
+  'Psikologi & SDM': ['msdm', 'psikologi industri', 'psikologi industri dan organisasi', 'manajemen sdm'],
+  'Hukum': ['hukum ekonomi syariah', 'hukum keluarga', 'hukum tata negara', 'hukum pidana islam', 'hukum keluarga islam'],
+  'Pendidikan': ['pgmi', 'pendidikan anak usia dini', 'bimbingan dan konseling', 'manajemen pendidikan', 'teknologi pendidikan', 'pendidikan agama islam',
+    'pendidikan matematika', 'pendidikan biologi', 'pendidikan fisika', 'pendidikan kimia', 'pendidikan ekonomi', 'pendidikan sejarah',
+    'pendidikan geografi', 'pendidikan bahasa indonesia', 'pendidikan pancasila dan kewarganegaraan', 'ppkn', 'pendidikan luar sekolah',
+    'pendidikan luar biasa', 'pendidikan khusus', 'pendidikan ips', 'pendidikan ipa', 'pendidikan guru sekolah dasar', 'pg paud',
+    'pendidikan guru madrasah ibtidaiyah', 'pendidikan teknik informatika', 'pendidikan akuntansi'],
+  'Bahasa & Sastra': ['sastra indonesia', 'bahasa dan sastra indonesia', 'sastra arab', 'bahasa arab', 'sastra jerman', 'sastra prancis', 'sastra belanda',
+    'sastra cina', 'sastra china', 'linguistik', 'bahasa korea', 'pendidikan bahasa jepang', 'pendidikan bahasa arab', 'pendidikan bahasa mandarin',
+    'bahasa dan sastra inggris', 'pendidikan bahasa inggris', 'bahasa dan kebudayaan jepang', 'sastra daerah'],
+  'Keperawatan & Kebidanan': ['ilmu keperawatan', 'profesi ners', 'asisten keperawatan', 'asisten keperawatan dan caregiver', 'keperawatan gigi',
+    'terapis gigi', 'terapis gigi dan mulut', 'pendidikan profesi bidan', 'pendidikan profesi ners'],
+  'Farmasi': ['farmasi klinis dan komunitas', 'profesi apoteker', 'farmasi industri', 'analis farmasi dan makanan', 'kefarmasian', 'farmasi klinis dan komunitas'],
+  'Kedokteran': ['pendidikan dokter', 'profesi dokter', 'pendidikan dokter gigi', 'pendidikan dokter hewan'],
+  'Kesehatan Masyarakat & Gizi': ['tlm', 'radiodiagnostik', 'teknik radiodiagnostik dan radioterapi', 'kesehatan lingkungan', 'rekam medis',
+    'perekam medis', 'rekam medis dan informasi kesehatan', 'rmik', 'administrasi rumah sakit', 'manajemen rumah sakit',
+    'keselamatan dan kesehatan kerja', 'kesehatan dan keselamatan kerja', 'okupasi terapi', 'terapi wicara', 'akupunktur', 'teknik gigi',
+    'dietisien', 'promosi kesehatan', 'epidemiologi', 'teknologi bank darah', 'ortotik prostetik'],
+  'Perhotelan & Pariwisata': ['manajemen perhotelan', 'akomodasi perhotelan', 'perhotelan dan jasa pariwisata', 'usaha layanan pariwisata', 'ulp',
+    'divisi kamar', 'manajemen pariwisata', 'destinasi pariwisata', 'manajemen kapal pesiar', 'mice', 'manajemen event', 'usaha perjalanan wisata'],
+  'Tata Boga & Kuliner': ['patiseri', 'seni kuliner dan pengolahan', 'kuliner perhotelan', 'tata hidang', 'manajemen tata boga', 'culinary art', 'seni kuliner'],
+  'Pertanian & Peternakan': ['agroekoteknologi', 'agrikultur', 'agribisnis tanaman', 'agribisnis ternak', 'agribisnis tanaman pangan dan hortikultura', 'atph',
+    'agribisnis perikanan', 'budidaya perairan', 'akuakultur', 'ilmu kelautan', 'teknologi hasil pertanian', 'teknologi hasil perikanan',
+    'teknologi industri pertanian', 'ilmu dan teknologi pangan', 'ilmu tanah', 'proteksi tanaman', 'hortikultura', 'perkebunan', 'agrobisnis',
+    'ilmu peternakan', 'nutrisi dan teknologi pakan', 'kesehatan hewan', 'agribisnis pengolahan hasil pertanian', 'manajemen sumberdaya perairan',
+    'pemanfaatan sumberdaya perikanan', 'budidaya tanaman perkebunan'],
+  'Administrasi Perkantoran': ['manajemen perkantoran dan layanan bisnis', 'otomatisasi dan tata kelola perkantoran', 'administrasi kantor',
+    'ilmu administrasi negara', 'administrasi negara', 'ilmu administrasi publik', 'ilmu administrasi', 'administrasi bisnis perkantoran'],
+  'Tata Busana & Fashion': ['desain fashion', 'desain fesyen', 'desain dan produksi busana', 'kriya tekstil', 'teknik tekstil', 'kimia tekstil', 'produksi garmen'],
+  'Pelayaran': ['nautika kapal niaga', 'teknika kapal niaga', 'nautika kapal penangkap ikan', 'teknika kapal penangkap ikan', 'ketatalaksanaan pelayaran',
+    'manajemen pelabuhan', 'teknik kelautan', 'teknik sistem perkapalan', 'transportasi laut', 'kepelabuhanan']
+};
+for (const m of MAJORS) {
+  for (const a of MORE_AKA[m.label] || []) if (!m.aka.includes(a)) m.aka.push(a);
+}
 
 /** Cari jurusan dari teks ketikan pengguna (nama, singkatan, atau sebagian nama). */
 export function findMajor(text) {
@@ -325,7 +449,7 @@ export function filterJobs(jobs, f, ref, skip = '') {
     if (skip !== 'fn' && f.fn && j.fn !== f.fn) return false;
     if (skip !== 'src' && f.src) {
       // '@perusahaan' = semua lowongan yang ditarik langsung dari situs karier perusahaan.
-      if (f.src === DIRECT ? j.via === 'karirhub' : j.platform !== f.src) return false;
+      if (f.src === DIRECT ? !isCompanySite(j) : j.platform !== f.src) return false;
     }
     if (skip !== 'types' && types.size && !types.has(j.type)) return false;
     if (skip !== 'edu' && edu && edu.key && j.eduLevel > edu.level) return false;
@@ -524,4 +648,162 @@ export function summarize(list, ref) {
     medianPay: median(salaried.map((j) => j.pay)),
     provinces: new Set(list.map((j) => j.province).filter(Boolean)).size
   };
+}
+
+// ---------------------------------------------------------------- saran ketikan
+
+/** Kunci pencocokan saran: huruf kecil tanpa aksen, tanda baca jadi spasi. */
+export function suggestKey(text) {
+  return fold(text).replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+const SMALL_WORDS = new Set(['dan', 'di', 'ke', 'of', 'and', 'the', 'for', 'to', 'in', 'on', 'at', '&']);
+const ACRONYMS = new Set(['it', 'ti', 'hr', 'hrd', 'ga', 'gm', 'qc', 'qa', 'qhse', 'hse', 'ehs', 'k3', 'ppic', 'spg', 'spb', 'mt', 'cs', 'crm',
+  'seo', 'sem', 'ui', 'ux', 'sap', 'erp', 'pic', 'smk', 'sma', 'smp', 's1', 's2', 'd3', 'd4', 'abk', 'b2b', 'b2c', 'kol', 'ai', 'api', 'ios',
+  'vp', 'avp', 'svp', 'ceo', 'cfo', 'cto', 'coo', 'pm', 'po', 'qs', 'mep', 'cnc', 'plc', 'sop', 'ojt', 'bd', 'r&d', 'rnd', 'apd', 'atm', 'cctv',
+  'dkv', 'rpl', 'tkj', 'tkr', 'tsm', 'tbsm', 'titl', 'tp', 'dpib', 'akl', 'bdp', 'otkp', 'mplb', 'sdm', 'fkip', 'pgsd', 'paud', 'pgpaud', 'ttk',
+  'upw', 'kesmas', 'mr', 'nde', 'ppn', 'pph', 'bpjs', 'umkm', 'sales/spg', 'admin/hrd', 'ipa', 'ips', 'ppkn', 'pai', 'pgmi', 'pwk', 'tjkt',
+  'pplg', 'sija', 'tkro', 'tptu', 'tflm', 'atph', 'rmik', 'tlm', 'msdm', 'ulp', 'mice', 'pjkr', 'k3l', 'tkj']);
+// Nama jurusan berbahasa Inggris tetap dikenali saat diketik lengkap, tapi tidak ditawarkan sebagai saran.
+const ENGLISH_MAJORS = new Set(['accounting', 'management', 'business', 'banking', 'design', 'mechanical', 'electrical', 'civil', 'industrial engineering',
+  'chemistry', 'chemical', 'mining', 'logistic', 'human resource', 'law', 'nursing', 'pharmacy', 'medical', 'hospitality', 'tourism', 'culinary',
+  'agriculture', 'mathematics', 'statistics', 'physics', 'biology', 'biotechnology', 'international relations', 'environmental engineering',
+  'aircraft maintenance', 'aviation', 'cosmetology', 'sport science', 'culinary art', 'computer science']);
+
+/** Judul huruf kapital semua dirapikan: "SALES ADMINISTRATOR" -> "Sales Administrator", "STAFF IT" -> "Staff IT". */
+export function prettyTitle(text) {
+  const s = String(text || '').trim();
+  if (/[a-z]/.test(s)) return s;
+  const out = s.toLowerCase().replace(/[a-z0-9][a-z0-9&'’.+#]*/g, (w) => {
+    const bare = w.replace(/[.]+$/, '');
+    if (ACRONYMS.has(bare)) return w.toUpperCase();
+    if (SMALL_WORDS.has(bare)) return w;
+    return w[0].toUpperCase() + w.slice(1);
+  });
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
+
+// Bentuk badan usaha tidak ikut dicocokkan: ketik "bank" langsung ketemu "PT Bank Central Asia Tbk".
+const LEGAL_FORM = /^(pt|cv|ud|pd|perum|perumda|koperasi|yayasan)\s+|\s+(tbk|persero)$/;
+function companyKey(name) {
+  let key = suggestKey(name);
+  for (let i = 0; i < 3; i++) key = key.replace(LEGAL_FORM, '').trim();
+  return key;
+}
+
+/** Inti judul untuk saran: tanpa keterangan kota/kebutuhan di belakang ("Sales Executive - Jakarta (Urgent)"). */
+function titleCore(title) {
+  return String(title || '').split(/\s+[-–—|]\s+|\s*[([]|,\s/)[0].trim();
+}
+
+/** Daftar saran untuk kolom "Posisi atau perusahaan", dari lowongan yang sedang aktif. */
+export function buildJobSuggestions(jobs) {
+  const titles = new Map();
+  const companies = new Map();
+  for (const j of jobs) {
+    const core = titleCore(j.title);
+    const key = suggestKey(core);
+    if (key.length >= 3 && core.length <= 60) {
+      let t = titles.get(key);
+      if (!t) titles.set(key, (t = { count: 0, forms: new Map() }));
+      t.count++;
+      t.forms.set(core, (t.forms.get(core) || 0) + 1);
+    }
+    if (j.company && j.company.length <= 80) {  // nama yang lebih panjang biasanya alamat yang salah isi
+      const c = companies.get(j.company);
+      if (c) c.count++;
+      else companies.set(j.company, { count: 1 });
+    }
+  }
+  const items = [];
+  for (const [key, t] of titles) {
+    const forms = [...t.forms].sort((a, b) => b[1] - a[1]);
+    // Tulisan dari sumber yang sudah memakai huruf kecil lebih rapi daripada versi kapital semua.
+    const best = (forms.find(([f]) => /[a-z]/.test(f)) || forms[0])[0];
+    items.push({ kind: 'posisi', label: prettyTitle(best), value: prettyTitle(best), keys: [key], count: t.count });
+  }
+  for (const [name, c] of companies) {
+    const full = suggestKey(name);
+    const keys = [...new Set([companyKey(name), full])].filter(Boolean);
+    // Nama perusahaan hanya cocok di tengah bila ketikan cukup panjang dan namanya pendek, supaya
+    // "adm" tidak memunculkan perusahaan yang namanya berisi "Kota Adm. Jakarta Barat".
+    items.push({ kind: 'perusahaan', label: name, value: name, keys, count: c.count, strict: name.length > 50 ? 2 : 1 });
+  }
+  return items;
+}
+
+/** Saran untuk kolom jurusan: nama rumpun jurusan dan nama jurusan yang dikenalinya. */
+export function buildMajorSuggestions(majors = MAJORS) {
+  const seen = new Set();
+  const items = [];
+  majors.forEach((m, i) => {
+    const key = suggestKey(m.label);
+    seen.add(key);
+    items.push({ kind: 'rumpun', label: m.label, value: m.label, keys: [key], count: 1000 - i });
+  });
+  majors.forEach((m) => {
+    for (const aka of m.aka) {
+      const key = suggestKey(aka);
+      if (!key || seen.has(key) || ENGLISH_MAJORS.has(aka)) continue;
+      seen.add(key);
+      items.push({ kind: 'jurusan', label: prettyTitle(aka.toUpperCase()), value: prettyTitle(aka.toUpperCase()), sub: m.label, keys: [key], count: 0 });
+    }
+  });
+  return items;
+}
+
+/**
+ * Saran yang benar-benar melanjutkan ketikan: "ek" -> "Ekonomi", "Ekonomi Pembangunan", tapi tidak "Teknik".
+ * Urutan: yang diawali ketikan dulu, lalu yang salah satu katanya diawali ketikan; di dalamnya yang lowongannya lebih banyak.
+ * Tidak ada tebakan salah ketik.
+ */
+export function matchSuggestions(items, query, limits = { total: 8 }) {
+  const q = suggestKey(query);
+  if (!q) return [];
+  const hits = [];
+  for (const item of items) {
+    let tier = 9;
+    // Ketikan pendek (1-2 huruf) hanya melanjutkan dari awal nama; mulai 3 huruf boleh juga awal kata berikutnya.
+    const inner = q.length >= 3 && item.strict !== 2;
+    for (const key of item.keys) {
+      if (key.startsWith(q)) { tier = 0; break; }
+      if (inner && tier > 1 && key.includes(' ' + q)) tier = 1;
+    }
+    if (tier < 9) hits.push({ item, tier });
+  }
+  hits.sort((a, b) => a.tier - b.tier || b.item.count - a.item.count || a.item.label.length - b.item.label.length
+    || a.item.label.localeCompare(b.item.label));
+  const total = limits.total || 8;
+  const perKind = limits.perKind || {};
+  const used = {};
+  const out = [];
+  for (const { item } of hits) {
+    const cap = perKind[item.kind];
+    if (cap != null && (used[item.kind] || 0) >= cap) continue;
+    used[item.kind] = (used[item.kind] || 0) + 1;
+    out.push(item);
+    if (out.length >= total) break;
+  }
+  if (out.length < total) {  // jatah satu jenis tidak terpakai: isi dengan jenis lain
+    for (const { item } of hits) {
+      if (out.length >= total) break;
+      if (!out.includes(item)) out.push(item);
+    }
+    const rank = new Map(hits.map((h, i) => [h.item, i]));
+    out.sort((a, b) => (a.kind === b.kind ? rank.get(a) - rank.get(b) : 0));
+  }
+  return out;
+}
+
+/** Bagian label yang cocok dengan ketikan, untuk ditebalkan: [sebelum, cocok, sesudah]. */
+export function splitMatch(label, query) {
+  const q = suggestKey(query);
+  const text = String(label || '');
+  if (!q) return [text, '', ''];
+  const pattern = q.split(' ').map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[^a-z0-9]+');
+  const m = new RegExp(`(^|[^a-z0-9])(${pattern})`).exec(fold(text).length === text.length ? fold(text) : text.toLowerCase());
+  if (!m) return [text, '', ''];
+  const start = m.index + m[1].length;
+  const end = start + m[2].length;
+  return [text.slice(0, start), text.slice(start, end), text.slice(end)];
 }

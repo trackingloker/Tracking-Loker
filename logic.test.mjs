@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   decode, filterJobs, sortJobs, countBy, median, salaryBy, salaryText, juta, ribu, ago, dateText, timeText,
   slug, karirhubUrl, initials, htmlToText, filtersFromQuery, filtersToQuery, activeCount, summarize, cityLabel, tidy, typeLabel, findMajor, majorFilter, MAJORS,
-  EMPTY_FILTERS, detailShard, yearsFrom
+  EMPTY_FILTERS, detailShard, yearsFrom, buildJobSuggestions, buildMajorSuggestions, matchSuggestions, splitMatch, prettyTitle, suggestKey
 } from './logic.js';
 
 const NOW = 1791943200; // 14 Okt 2026 06.00 WIB
@@ -250,4 +250,62 @@ test('lama pengalaman dari teks lowongan', () => {
   assert.equal(yearsFrom('2 years of relevant experience'), 2);
   assert.equal(yearsFrom('Fresh graduate are welcome'), 0);
   assert.equal(yearsFrom('Menguasai Excel'), null);
+});
+
+test('saran jurusan hanya yang melanjutkan ketikan', () => {
+  const items = buildMajorSuggestions();
+  const labels = (q) => matchSuggestions(items, q).map((i) => i.label);
+  const ek = labels('ek');
+  assert.equal(ek[0], 'Ekonomi & Perbankan');
+  assert.ok(ek.includes('Ekonomi Pembangunan') && ek.includes('Ekonomi Syariah'));
+  assert.ok(ek.every((l) => l.startsWith('Ekonomi')));  // "teknik" (ek di tengah kata) dan "Teknik Eksplorasi" tidak ikut
+  assert.ok(labels('stat').includes('Statistika'));
+  assert.ok(!labels('stat').includes('Statistics'));  // nama Inggris tidak ditawarkan
+  assert.ok(labels('tata').includes('Tata Rias'));
+  assert.deepEqual(labels('ekonomi pem'), ['Ekonomi Pembangunan']);
+  assert.equal(labels('dkv')[0], 'DKV');
+  assert.equal(matchSuggestions(items, 'dkv')[0].sub, 'Desain Komunikasi Visual');
+  // Kata kedua yang diawali ketikan tetap boleh, tapi di belakang yang diawali ketikan.
+  const kom = labels('kom');
+  assert.equal(kom[0], 'Komunikasi');
+  assert.ok(kom.indexOf('Ilmu Komunikasi') > kom.indexOf('Komputerisasi Akuntansi'));
+  assert.deepEqual(labels('xyz'), []);
+  assert.deepEqual(labels('  '), []);
+});
+
+test('saran posisi dan perusahaan dari lowongan aktif', () => {
+  const jobs = [
+    { title: 'SALES ADMINISTRATOR - CF LENGKONG', company: 'PT Japfa Comfeed Indonesia Tbk' },
+    { title: 'Sales Administrator', company: 'PT Japfa Comfeed Indonesia Tbk' },
+    { title: 'Admin Gudang (Urgent)', company: 'CV Maju Jaya' },
+    { title: 'Staff Admin', company: 'PT Bank Central Asia Tbk' },
+    { title: 'Teknisi AC', company: 'PT Bank Central Asia Tbk' }
+  ];
+  const items = buildJobSuggestions(jobs);
+  const sales = matchSuggestions(items, 'sales');
+  assert.equal(sales[0].label, 'Sales Administrator');  // tulisan huruf kecil dipilih, keterangan lokasi dibuang
+  assert.equal(sales[0].count, 2);
+  assert.deepEqual(matchSuggestions(items, 'admin').map((i) => i.label), ['Admin Gudang', 'Sales Administrator', 'Staff Admin']);
+  assert.deepEqual(matchSuggestions(items, 'ad').map((i) => i.label), ['Admin Gudang']);  // 2 huruf: hanya dari awal nama
+  // Bentuk badan usaha tidak menghalangi: "bank" dan "pt bank" sama-sama ketemu.
+  assert.equal(matchSuggestions(items, 'bank')[0].label, 'PT Bank Central Asia Tbk');
+  assert.equal(matchSuggestions(items, 'pt bank')[0].label, 'PT Bank Central Asia Tbk');
+  assert.equal(matchSuggestions(items, 'bank')[0].count, 2);
+  assert.ok(!matchSuggestions(items, 'ek').length);  // "teknisi" tidak diawali "ek"
+  const junk = buildJobSuggestions([{ title: 'Kasir', company: 'Gedung Mal Ciputra Lt.P-1 Jl. Arteri S. Parman Rt. 011, Kota Adm. Jakarta Barat' }]);
+  assert.deepEqual(matchSuggestions(junk, 'adm'), []);  // nama berisi alamat: tidak cocok di tengah
+  const bri = buildJobSuggestions([{ title: 'Teller', company: 'PT Bank Rakyat Indonesia' }]);
+  assert.equal(matchSuggestions(bri, 'rakyat')[0].label, 'PT Bank Rakyat Indonesia');
+  assert.deepEqual(matchSuggestions(bri, 'ra'), []);  // terlalu pendek untuk cocok di tengah nama perusahaan
+  const limited = matchSuggestions(items, 'admin', { total: 3, perKind: { posisi: 1, perusahaan: 1 } });
+  assert.equal(limited.length, 3);  // jatah yang tidak terpakai diisi jenis lain
+});
+
+test('judul kapital dirapikan dan bagian cocok ditebalkan', () => {
+  assert.equal(prettyTitle('STAFF IT & HRD'), 'Staff IT & HRD');
+  assert.equal(prettyTitle('Admin Gudang'), 'Admin Gudang');
+  assert.equal(suggestKey('Ekonomi & Perbankan'), 'ekonomi perbankan');
+  assert.deepEqual(splitMatch('Ekonomi & Perbankan', 'ek'), ['', 'Ek', 'onomi & Perbankan']);
+  assert.deepEqual(splitMatch('Ilmu Komunikasi', 'kom'), ['Ilmu ', 'Kom', 'unikasi']);
+  assert.deepEqual(splitMatch('PT Bank Central Asia Tbk', 'bank cen'), ['PT ', 'Bank Cen', 'tral Asia Tbk']);
 });
