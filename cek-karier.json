@@ -1,5 +1,5 @@
 {
- "diperiksa": "2026-10-22T15:00:22+07:00",
+ "diperiksa": "2026-10-22T15:14:29+07:00",
  "nama": "Disnakerja",
  "situs": "https://www.disnakerja.com",
  "robots": "boleh",
@@ -20,183 +20,123 @@
   {
    "url": "https://www.disnakerja.com/lowongan-kerja-pt-bina-karya-persero/",
    "perusahaan": "PT Bina Karya (Persero)",
-   "posisi": [
-    "PT Bina Karya (Persero)"
-   ],
-   "h3_lain": [],
+   "posisi": [],
+   "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Kalimantan Barat, Kalimantan Selatan, Kalimantan Tengah, Kalimantan Timur, Kalimantan Utara, Nusa Tenggara Timur",
     "pendidikan": "SMA/K, D3, D4/S1",
     "tipe": "Full Time",
     "update": "October 22, 2026October 22, 2026"
    },
-   "tanggal": 1792656022,
-   "lowongan": [
-    {
-     "title": "PT Bina Karya (Persero)",
-     "city": "",
-     "province": "Nusa Tenggara Timur",
-     "edu": "SMA atau Sederajat",
-     "type": "Full time"
-    }
-   ],
+   "tanggal": 1792602000,
+   "lowongan": [],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2026/10/BINA-KARYA-LOGO.jpg"
   },
   {
    "url": "https://www.disnakerja.com/lowongan-pt-hop-lun-indonesia/",
    "perusahaan": "PT Hop Lun Indonesia",
-   "posisi": [
-    "PT Hop Lun Indonesia"
-   ],
-   "h3_lain": [],
+   "posisi": [],
+   "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Jawa Tengah",
     "pendidikan": "SMA/K, D3, S1",
     "tipe": "Full Time",
     "update": "October 22, 2026October 22, 2026"
    },
-   "tanggal": 1792656022,
-   "lowongan": [
-    {
-     "title": "PT Hop Lun Indonesia",
-     "city": "",
-     "province": "Jawa Tengah",
-     "edu": "SMP atau Sederajat",
-     "type": "Full time"
-    }
-   ],
+   "tanggal": 1792602000,
+   "lowongan": [],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2023/07/Hoplun-Logo-1.png"
   },
   {
    "url": "https://www.disnakerja.com/pt-bank-syariah-nasional-bsn/",
    "perusahaan": "PT Bank Syariah Nasional (BSN)",
    "posisi": [],
-   "h3_lain": [],
+   "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Seluruh Indonesia",
     "pendidikan": "S1, S2",
     "tipe": "Full Time",
     "update": "October 22, 2026October 22, 2026"
    },
-   "tanggal": 1792656022,
+   "tanggal": 1792602000,
    "lowongan": [],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2024/03/BSM-Logo.jpg"
   },
   {
    "url": "https://www.disnakerja.com/lowongan-kerja-pt-bino-mitra-sejati-bantex-indonesia/",
    "perusahaan": "PT Bino Mitra Sejati (Bantex Indonesia)",
-   "posisi": [
-    "PT Bino Mitra Sejati (Bantex Indonesia)"
-   ],
-   "h3_lain": [],
+   "posisi": [],
+   "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Jawa Barat",
     "pendidikan": "SMA/K",
     "tipe": "Full Time",
     "update": "October 22, 2026October 22, 2026"
    },
-   "tanggal": 1792656022,
-   "lowongan": [
-    {
-     "title": "PT Bino Mitra Sejati (Bantex Indonesia)",
-     "city": "Kota Bogor",
-     "province": "Jawa Barat",
-     "edu": "SMA atau Sederajat",
-     "type": "Full time"
-    }
-   ],
+   "tanggal": 1792602000,
+   "lowongan": [],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2020/06/Bantex-Logo.jpg"
   },
   {
    "url": "https://www.disnakerja.com/lowongan-kerja-pt-fap-agri-tbk/",
    "perusahaan": "PT FAP Agri Tbk",
-   "posisi": [
-    "PT FAP Agri Tbk"
-   ],
-   "h3_lain": [],
+   "posisi": [],
+   "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Kalimantan Timur, Kalimantan Utara",
     "pendidikan": "D4/S1",
     "tipe": "Full Time",
     "update": "October 22, 2026October 22, 2026"
    },
-   "tanggal": 1792656022,
-   "lowongan": [
-    {
-     "title": "PT FAP Agri Tbk",
-     "city": "",
-     "province": "Kalimantan Timur",
-     "edu": "Diploma",
-     "type": "Full time"
-    }
-   ],
+   "tanggal": 1792602000,
+   "lowongan": [],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2021/12/FAP-Agri.jpg"
   },
   {
    "url": "https://www.disnakerja.com/lowongan-kerja-pt-malindo-feedmill-tbk-3/",
    "perusahaan": "PT Malindo Feedmill Tbk",
-   "posisi": [
-    "PT Malindo Feedmill Tbk"
-   ],
-   "h3_lain": [],
+   "posisi": [],
+   "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Sulawesi Selatan",
     "pendidikan": "D3, S1",
     "tipe": "Full Time",
     "update": "October 22, 2026October 22, 2026"
    },
-   "tanggal": 1792656022,
-   "lowongan": [
-    {
-     "title": "PT Malindo Feedmill Tbk",
-     "city": "",
-     "province": "Sulawesi Selatan",
-     "edu": "Diploma",
-     "type": "Full time"
-    }
-   ],
+   "tanggal": 1792602000,
+   "lowongan": [],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2022/03/Malindo-Logo.jpg"
   },
   {
    "url": "https://www.disnakerja.com/lowongan-kerja-pt-japfa-comfeed-indonesia-tbk/",
    "perusahaan": "PT JAPFA Food Indonesia",
-   "posisi": [
-    "PT JAPFA Food Indonesia"
-   ],
-   "h3_lain": [],
+   "posisi": [],
+   "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Jawa Timur",
     "pendidikan": "D3",
     "tipe": "Full Time",
     "update": "October 22, 2026October 22, 2026"
    },
-   "tanggal": 1792656022,
-   "lowongan": [
-    {
-     "title": "PT JAPFA Food Indonesia",
-     "city": "",
-     "province": "Jawa Timur",
-     "edu": "Diploma",
-     "type": "Full time"
-    }
-   ],
+   "tanggal": 1792602000,
+   "lowongan": [],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2024/05/JAPFA-LOGO.jpg"
   },
   {
    "url": "https://www.disnakerja.com/pt-pertamina-training-consulting-ptc-2/",
    "perusahaan": "PT Pertamina Training & Consulting (PTC)",
    "posisi": [],
-   "h3_lain": [],
+   "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Jawa Timur",
     "pendidikan": "SMA/K, D3, S1",
     "tipe": "Full Time",
     "update": "October 21, 2026October 21, 2026"
    },
-   "tanggal": 1792656022,
+   "tanggal": 1792515600,
    "lowongan": [],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2021/12/Pertamina-PTC-Logo.jpg"
   }
  ],
- "berhasil": 6
+ "berhasil": 0
 }
