@@ -1,5 +1,5 @@
 {
- "diperiksa": "2026-10-22T15:19:58+07:00",
+ "diperiksa": "2026-10-22T15:23:30+07:00",
  "nama": "Disnakerja",
  "situs": "https://www.disnakerja.com",
  "robots": "boleh",
@@ -20,7 +20,39 @@
   {
    "url": "https://www.disnakerja.com/lowongan-kerja-pt-bina-karya-persero/",
    "perusahaan": "PT Bina Karya (Persero)",
-   "posisi": [],
+   "posisi": [
+    "Team Leader",
+    "Ahli Arsitektur Bangunan Gedung",
+    "Ahli Struktur & Bangunan Gedung",
+    "Ahli Geoteknik",
+    "Ahli Mekanikal, Plumbing & Pompa Mekanik",
+    "Ahli Elektrikal & Elektronik",
+    "Ahli Proteksi Kebakaran",
+    "Ahli Tata Udara & Refrigerasi",
+    "Ahli Penilai Bangunan Gedung Hijau",
+    "Ahli Pertanian",
+    "Ahli Peternakan",
+    "Ahli Teknik Lingkungan",
+    "Ahli Arsitektur Lansekap",
+    "BIM Manager",
+    "Quality Eng. Arsitektur Bangunan Gedung",
+    "Quality Eng. Bahan Bangunan/Konstruksi",
+    "Quality Eng. Struktur Gedung",
+    "Quality Eng. Geoteknik",
+    "Quality Eng. MEP",
+    "Ahli Quantity Engineer",
+    "Ahli Keselamatan Konstruksi",
+    "Inspector Sipil dan Infrastruktur",
+    "Inspector Geoteknik",
+    "Inspector Arsitektur dan Lansekap",
+    "Inspector MEEP",
+    "Inspector K3 Konstruksi",
+    "Inspector Quantity Engineer",
+    "Tenaga Operator CAD/CAM",
+    "Manajer Kantor Lapangan/Administrasi",
+    "Sekretaris",
+    "Pengemudi"
+   ],
    "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Kalimantan Barat, Kalimantan Selatan, Kalimantan Tengah, Kalimantan Timur, Kalimantan Utara, Nusa Tenggara Timur",
@@ -29,24 +61,243 @@
     "update": "October 22, 2026October 22, 2026"
    },
    "tanggal": 1792602000,
-   "panjang_artikel": 64769,
+   "panjang_artikel": 16299,
    "tebal_di_halaman": 35,
-   "tebal_di_artikel": 35,
+   "tebal_di_artikel": 32,
    "contoh_tebal_halaman": [
-    "<p><strong>1. Team Leader",
-    "<p><strong>2. Ahli Arsitektur Bangunan Gedung",
-    "<p><strong>3. Ahli Struktur &amp; Bangunan Gedung",
-    "<p><strong>4. Ahli Geoteknik",
-    "<p><strong>5. Ahli Mekanikal, Plumbing &amp; Pompa Mekanik",
-    "<p><strong>6. Ahli Elektrikal &amp; Elektronik"
+    "<p><strong>1. Team Leader</strong>\n<ul>\n<li>Jumlah kebutuhan: 1 orang.</li>\n<li>Pendidikan: S2 Teknik Sipil/Arsitektur.</li>\n<li>Pengalaman: 5 tahun.</li>\n<li>Sertifikasi",
+    "<p><strong>2. Ahli Arsitektur Bangunan Gedung</strong>\n<ul>\n<li>Jumlah kebutuhan: 3 orang.</li>\n<li>Pendidikan: S1/D4 Teknik Arsitektur.</li>\n<li>Pengalaman: 5 tahun.</li",
+    "<p><strong>3. Ahli Struktur &amp; Bangunan Gedung</strong>\n<ul>\n<li>Pendidikan: S1 Teknik Sipil.</li>\n<li>Pengalaman: 5 tahun.</li>\n<li>Sertifikasi: SKK Ahli Teknik Bangu",
+    "<p><strong>4. Ahli Geoteknik</strong>\n<ul>\n<li>Jumlah kebutuhan: 3 orang.</li>\n<li>Pendidikan: S1 Sipil/Geologi.</li>\n<li>Pengalaman: 5 tahun.</li>\n<li>Sertifikasi: SKK A"
    ],
-   "lowongan": [],
+   "lowongan": [
+    {
+     "title": "Team Leader",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Magister",
+     "type": "Full time"
+    },
+    {
+     "title": "Ahli Arsitektur Bangunan Gedung",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Ahli Struktur & Bangunan Gedung",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Sarjana",
+     "type": "Full time"
+    },
+    {
+     "title": "Ahli Geoteknik",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "SMA atau Sederajat",
+     "type": "Full time"
+    },
+    {
+     "title": "Ahli Mekanikal, Plumbing & Pompa Mekanik",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Ahli Elektrikal & Elektronik",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Ahli Proteksi Kebakaran",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Ahli Tata Udara & Refrigerasi",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Ahli Penilai Bangunan Gedung Hijau",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Sarjana",
+     "type": "Full time"
+    },
+    {
+     "title": "Ahli Pertanian",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Ahli Peternakan",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Ahli Teknik Lingkungan",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Sarjana",
+     "type": "Full time"
+    },
+    {
+     "title": "Ahli Arsitektur Lansekap",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "SMA atau Sederajat",
+     "type": "Full time"
+    },
+    {
+     "title": "BIM Manager",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Quality Eng. Arsitektur Bangunan Gedung",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Sarjana",
+     "type": "Full time"
+    },
+    {
+     "title": "Quality Eng. Bahan Bangunan/Konstruksi",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Sarjana",
+     "type": "Full time"
+    },
+    {
+     "title": "Quality Eng. Struktur Gedung",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Sarjana",
+     "type": "Full time"
+    },
+    {
+     "title": "Quality Eng. Geoteknik",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Sarjana",
+     "type": "Full time"
+    },
+    {
+     "title": "Quality Eng. MEP",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Sarjana",
+     "type": "Full time"
+    },
+    {
+     "title": "Ahli Quantity Engineer",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Sarjana",
+     "type": "Full time"
+    },
+    {
+     "title": "Ahli Keselamatan Konstruksi",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Sarjana",
+     "type": "Full time"
+    },
+    {
+     "title": "Inspector Sipil dan Infrastruktur",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Inspector Geoteknik",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Inspector Arsitektur dan Lansekap",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Inspector MEEP",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Inspector K3 Konstruksi",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Inspector Quantity Engineer",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Tenaga Operator CAD/CAM",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Manajer Kantor Lapangan/Administrasi",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Sarjana",
+     "type": "Full time"
+    },
+    {
+     "title": "Sekretaris",
+     "city": "",
+     "province": "Kalimantan Barat",
+     "edu": "Sarjana",
+     "type": "Full time"
+    },
+    {
+     "title": "Pengemudi",
+     "city": "",
+     "province": "Nusa Tenggara Timur",
+     "edu": "SMA atau Sederajat",
+     "type": "Full time"
+    }
+   ],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2026/10/BINA-KARYA-LOGO.jpg"
   },
   {
    "url": "https://www.disnakerja.com/lowongan-pt-hop-lun-indonesia/",
    "perusahaan": "PT Hop Lun Indonesia",
-   "posisi": [],
+   "posisi": [
+    "Supervisor Sewing",
+    "Quality Assurance"
+   ],
    "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Jawa Tengah",
@@ -55,21 +306,37 @@
     "update": "October 22, 2026October 22, 2026"
    },
    "tanggal": 1792602000,
-   "panjang_artikel": 54198,
+   "panjang_artikel": 10722,
    "tebal_di_halaman": 6,
-   "tebal_di_artikel": 6,
+   "tebal_di_artikel": 3,
    "contoh_tebal_halaman": [
-    "<p><strong>1. Supervisor Sewing",
-    "<p><strong>2. Quality Assurance",
-    "<li> <b>INFO: "
+    "<p><strong>1. Supervisor Sewing</strong>\n<p><strong>2. Quality Assurance</strong>\n<p>Kualifikasi:\n<ul>\n<li>Pendidikan minimal SMP/sederajat untuk posisi Supervisor Sewing",
+    "<li> <b>INFO: </b>Akses lebih mudah di aplikasi Disnakerja <a href=\"https://play.google.com/store/apps/details?id=com.disnakerja.app\"><b>Download Sekarang Disini!</b><"
    ],
-   "lowongan": [],
+   "lowongan": [
+    {
+     "title": "Supervisor Sewing",
+     "city": "",
+     "province": "Jawa Tengah",
+     "edu": "SMP atau Sederajat",
+     "type": "Full time"
+    },
+    {
+     "title": "Quality Assurance",
+     "city": "",
+     "province": "Jawa Tengah",
+     "edu": "Diploma",
+     "type": "Full time"
+    }
+   ],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2023/07/Hoplun-Logo-1.png"
   },
   {
    "url": "https://www.disnakerja.com/pt-bank-syariah-nasional-bsn/",
    "perusahaan": "PT Bank Syariah Nasional (BSN)",
-   "posisi": [],
+   "posisi": [
+    "Officer Development Program (ODP) – Talent Sourcing"
+   ],
    "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Seluruh Indonesia",
@@ -78,21 +345,31 @@
     "update": "October 22, 2026October 22, 2026"
    },
    "tanggal": 1792602000,
-   "panjang_artikel": 58628,
+   "panjang_artikel": 12670,
    "tebal_di_halaman": 5,
-   "tebal_di_artikel": 5,
+   "tebal_di_artikel": 2,
    "contoh_tebal_halaman": [
-    "<p><strong>Officer Development Program (ODP) &#8211; Talent Sourcing",
-    "<p><strong>Bank Syariah Nasional (BSN)",
-    "<li> <b>INFO: "
+    "<p><strong>Officer Development Program (ODP) &#8211; Talent Sourcing</strong>\n<p><strong>Bank Syariah Nasional (BSN)</strong> merupakan institusi perbankan syariah yang b",
+    "<li> <b>INFO: </b>Akses lebih mudah di aplikasi Disnakerja <a href=\"https://play.google.com/store/apps/details?id=com.disnakerja.app\"><b>Download Sekarang Disini!</b><"
    ],
-   "lowongan": [],
+   "lowongan": [
+    {
+     "title": "Officer Development Program (ODP) – Talent Sourcing",
+     "city": "",
+     "province": "",
+     "edu": "Sarjana",
+     "type": "Full time"
+    }
+   ],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2024/03/BSM-Logo.jpg"
   },
   {
    "url": "https://www.disnakerja.com/lowongan-kerja-pt-bino-mitra-sejati-bantex-indonesia/",
    "perusahaan": "PT Bino Mitra Sejati (Bantex Indonesia)",
-   "posisi": [],
+   "posisi": [
+    "Operator Die Cut",
+    "Operator Bolwn"
+   ],
    "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Jawa Barat",
@@ -101,23 +378,44 @@
     "update": "October 22, 2026October 22, 2026"
    },
    "tanggal": 1792602000,
-   "panjang_artikel": 56772,
+   "panjang_artikel": 9841,
    "tebal_di_halaman": 7,
-   "tebal_di_artikel": 7,
+   "tebal_di_artikel": 4,
    "contoh_tebal_halaman": [
-    "<p><strong>1. Operator Die Cut",
-    "<p><strong>2. Operator Bolwn",
-    "<p><strong>Lokasi Penempatan:",
-    "<li> <b>INFO: "
+    "<p><strong>1. Operator Die Cut</strong>\n<p><strong>2. Operator Bolwn</strong>\n<p>Kualifikasi:\n<ul>\n<li>Pendidikan minimal SMA/SMK.</li>\n<li>Memiliki pengalaman minimal 2–",
+    "<p><strong>Lokasi Penempatan:</strong> Sentul, Bogor.\n<hr />\n<p>How to apply:\n<p>Send your CV to:\n<p>Email: <strong>recruitment@bantex.co.id</strong> | Subject : Operator",
+    "<li> <b>INFO: </b>Akses lebih mudah di aplikasi Disnakerja <a href=\"https://play.google.com/store/apps/details?id=com.disnakerja.app\"><b>Download Sekarang Disini!</b><"
    ],
-   "lowongan": [],
+   "lowongan": [
+    {
+     "title": "Operator Die Cut",
+     "city": "Kota Bogor",
+     "province": "Jawa Barat",
+     "edu": "SMA atau Sederajat",
+     "type": "Full time"
+    },
+    {
+     "title": "Operator Bolwn",
+     "city": "Kota Bogor",
+     "province": "Jawa Barat",
+     "edu": "SMA atau Sederajat",
+     "type": "Full time"
+    }
+   ],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2020/06/Bantex-Logo.jpg"
   },
   {
    "url": "https://www.disnakerja.com/lowongan-kerja-pt-fap-agri-tbk/",
    "perusahaan": "PT FAP Agri Tbk",
-   "posisi": [],
-   "baris_tebal_lain": [],
+   "posisi": [
+    "FAT (Field Asistant Training)",
+    "MAT (Mill Asistant Training)",
+    "AAT (Administrasi Asistant Training)",
+    "TAT (Traksi Asistant Training)"
+   ],
+   "baris_tebal_lain": [
+    "GRADUATE TRAINEE PROGRAM"
+   ],
    "meta": {
     "lokasi": "Kalimantan Timur, Kalimantan Utara",
     "pendidikan": "D4/S1",
@@ -125,24 +423,57 @@
     "update": "October 22, 2026October 22, 2026"
    },
    "tanggal": 1792602000,
-   "panjang_artikel": 57383,
+   "panjang_artikel": 10341,
    "tebal_di_halaman": 8,
-   "tebal_di_artikel": 8,
+   "tebal_di_artikel": 5,
    "contoh_tebal_halaman": [
-    "<p><strong>GRADUATE TRAINEE PROGRAM",
-    "<p><strong>1. FAT (Field Asistant Training)",
-    "<p><strong>2. MAT (Mill Asistant Training)",
-    "<p><strong>3. AAT (Administrasi Asistant Training)",
-    "<p><strong>4. TAT (Traksi Asistant Training)",
-    "<li> <b>INFO: "
+    "<p><strong>GRADUATE TRAINEE PROGRAM</strong>\n<p>Graduate Trainee Program (GTP) adalah program pengembangan calon Asisten di FAP Agri Tbk yang mempersiapkan pemimpin masa ",
+    "<p><strong>1. FAT (Field Asistant Training)</strong>\n<ul>\n<li>Agroteknologi</li>\n<li>Ilmu Tanah</li>\n<li>Kehutanan</li>\n<li>Teknik Pengolahan Kelapa Sawit</li>\n<li>Hama &",
+    "<p><strong>2. MAT (Mill Asistant Training)</strong>\n<ul>\n<li>Teknik Elektro</li>\n<li>Teknik Mesin</li>\n<li>Teknik Kimia</li>\n</ul>\n<p><strong>3. AAT (Administrasi Asistan",
+    "<p><strong>4. TAT (Traksi Asistant Training)</strong>\n<ul>\n<li>Teknik Mesin</li>\n<li>Teknik Otomotif</li>\n<li>Teknik Alat Berat</li>\n</ul>\n<p>Persyaratan\n<ul>\n<li>Pendidi"
    ],
-   "lowongan": [],
+   "lowongan": [
+    {
+     "title": "FAT (Field Asistant Training)",
+     "city": "",
+     "province": "Kalimantan Timur",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "MAT (Mill Asistant Training)",
+     "city": "",
+     "province": "Kalimantan Timur",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "AAT (Administrasi Asistant Training)",
+     "city": "",
+     "province": "Kalimantan Timur",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "TAT (Traksi Asistant Training)",
+     "city": "",
+     "province": "Kalimantan Timur",
+     "edu": "Diploma",
+     "type": "Full time"
+    }
+   ],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2021/12/FAP-Agri.jpg"
   },
   {
    "url": "https://www.disnakerja.com/lowongan-kerja-pt-malindo-feedmill-tbk-3/",
    "perusahaan": "PT Malindo Feedmill Tbk",
-   "posisi": [],
+   "posisi": [
+    "Staff Quality Control",
+    "Operator Produksi",
+    "Admin Warehouse",
+    "Maintenance",
+    "General Worker Warehouse"
+   ],
    "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Sulawesi Selatan",
@@ -151,24 +482,61 @@
     "update": "October 22, 2026October 22, 2026"
    },
    "tanggal": 1792602000,
-   "panjang_artikel": 56784,
+   "panjang_artikel": 9691,
    "tebal_di_halaman": 8,
-   "tebal_di_artikel": 8,
+   "tebal_di_artikel": 5,
    "contoh_tebal_halaman": [
-    "<p><strong>1. Staff Quality Control",
-    "<p><strong>2. Operator Produksi",
-    "<p><strong>3. Admin Warehouse",
-    "<p><strong>4. Maintenance",
-    "<p><strong>5. General Worker Warehouse",
-    "<li> <b>INFO: "
+    "<p><strong>1. Staff Quality Control</strong>\n<p><strong>2. Operator Produksi</strong>\n<p><strong>3. Admin Warehouse</strong>\n<p><strong>4. Maintenance</strong>\n<p><strong",
+    "<li> <b>INFO: </b>Akses lebih mudah di aplikasi Disnakerja <a href=\"https://play.google.com/store/apps/details?id=com.disnakerja.app\"><b>Download Sekarang Disini!</b><"
    ],
-   "lowongan": [],
+   "lowongan": [
+    {
+     "title": "Staff Quality Control",
+     "city": "",
+     "province": "Sulawesi Selatan",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Operator Produksi",
+     "city": "",
+     "province": "Sulawesi Selatan",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Admin Warehouse",
+     "city": "",
+     "province": "Sulawesi Selatan",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Maintenance",
+     "city": "",
+     "province": "Sulawesi Selatan",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "General Worker Warehouse",
+     "city": "",
+     "province": "Sulawesi Selatan",
+     "edu": "Diploma",
+     "type": "Full time"
+    }
+   ],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2022/03/Malindo-Logo.jpg"
   },
   {
    "url": "https://www.disnakerja.com/lowongan-kerja-pt-japfa-comfeed-indonesia-tbk/",
    "perusahaan": "PT JAPFA Food Indonesia",
-   "posisi": [],
+   "posisi": [
+    "Maintenance Operator",
+    "Utility Operator",
+    "Electrical Operator",
+    "Maintenance & Utility SPV"
+   ],
    "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Jawa Timur",
@@ -177,24 +545,52 @@
     "update": "October 22, 2026October 22, 2026"
    },
    "tanggal": 1792602000,
-   "panjang_artikel": 57406,
+   "panjang_artikel": 11042,
    "tebal_di_halaman": 8,
-   "tebal_di_artikel": 8,
+   "tebal_di_artikel": 5,
    "contoh_tebal_halaman": [
-    "<p><strong>1. Maintenance Operator",
-    "<p><strong>2. Utility Operator",
-    "<p><strong>3. Electrical Operator",
-    "<p><strong>4. Maintenance &amp; Utility SPV",
-    "<p><strong>HRGA-WNY@japfa.com",
-    "<li> <b>INFO: "
+    "<p><strong>1. Maintenance Operator</strong>\n<p><strong>2. Utility Operator</strong>\n<p><strong>3. Electrical Operator</strong>\n<p><strong>4. Maintenance &amp; Utility SPV",
+    "<p><strong>HRGA-WNY@japfa.com</strong> | With email subjek : Nama_MTNFL7\n<p>PERHATIAN! Pelamar tidak dipungut biaya apapun. Hati &#8211; hati terhadap penipuan yang dilak",
+    "<li> <b>INFO: </b>Akses lebih mudah di aplikasi Disnakerja <a href=\"https://play.google.com/store/apps/details?id=com.disnakerja.app\"><b>Download Sekarang Disini!</b><"
    ],
-   "lowongan": [],
+   "lowongan": [
+    {
+     "title": "Maintenance Operator",
+     "city": "",
+     "province": "Jawa Timur",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Utility Operator",
+     "city": "",
+     "province": "Jawa Timur",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Electrical Operator",
+     "city": "",
+     "province": "Jawa Timur",
+     "edu": "Diploma",
+     "type": "Full time"
+    },
+    {
+     "title": "Maintenance & Utility SPV",
+     "city": "",
+     "province": "Jawa Timur",
+     "edu": "Diploma",
+     "type": "Full time"
+    }
+   ],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2024/05/JAPFA-LOGO.jpg"
   },
   {
    "url": "https://www.disnakerja.com/pt-pertamina-training-consulting-ptc-2/",
    "perusahaan": "PT Pertamina Training & Consulting (PTC)",
-   "posisi": [],
+   "posisi": [
+    "Helper Operation"
+   ],
    "baris_tebal_lain": [],
    "meta": {
     "lokasi": "Jawa Timur",
@@ -203,16 +599,24 @@
     "update": "October 21, 2026October 21, 2026"
    },
    "tanggal": 1792515600,
-   "panjang_artikel": 58893,
+   "panjang_artikel": 11391,
    "tebal_di_halaman": 4,
-   "tebal_di_artikel": 4,
+   "tebal_di_artikel": 1,
    "contoh_tebal_halaman": [
-    "<p><strong>Helper Operation",
-    "<li> <b>INFO: "
+    "<p><strong>Helper Operation</strong>\n<p>PT Pertamina Training and Consulting mengundang para profesional untuk bergabung dan berkontribusi sebagai bagian dari fungsi Main",
+    "<li> <b>INFO: </b>Akses lebih mudah di aplikasi Disnakerja <a href=\"https://play.google.com/store/apps/details?id=com.disnakerja.app\"><b>Download Sekarang Disini!</b><"
    ],
-   "lowongan": [],
+   "lowongan": [
+    {
+     "title": "Helper Operation",
+     "city": "",
+     "province": "Jawa Timur",
+     "edu": "SMA atau Sederajat",
+     "type": "Kontrak"
+    }
+   ],
    "logo": "https://i0.wp.com/disnakerja.com/wp-content/uploads/2021/12/Pertamina-PTC-Logo.jpg"
   }
  ],
- "berhasil": 0
+ "berhasil": 8
 }
