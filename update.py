@@ -70,7 +70,7 @@ TYPE_NAMES = {
 }
 FIELDS = [
     "id", "title", "company", "city", "province", "platform", "function",
-    "industry", "type", "edu", "smin", "smax", "posted", "expires", "first", "via",
+    "industry", "type", "edu", "smin", "smax", "posted", "expires", "first", "via", "tags",
 ]
 LISTS = ["company", "city", "province", "platform", "function", "industry", "type", "edu", "via"]
 
@@ -366,6 +366,7 @@ def fill_locations(jobs: list[dict], prev: dict, checked: set[str], refs: dict, 
         except Exception as err:  # noqa: BLE001
             log(f"  detail {job['id']} gagal: {err}")
             continue
+        DETAIL_SEEN[job["id"]] = detail  # dipakai lagi untuk label fresh graduate / MT tanpa membuka ulang
         city, prov = place_from_detail(detail, refs)
         if prov:
             job["province"] = prov
@@ -376,6 +377,71 @@ def fill_locations(jobs: list[dict], prev: dict, checked: set[str], refs: dict, 
     if todo:
         log(f"Lokasi dilengkapi: {filled} dari {min(len(todo), DETAIL_CAP)} lowongan (antrean {len(todo)})")
     return done
+
+
+DETAIL_SEEN: dict[str, dict] = {}  # detail Karirhub yang sudah dibuka di penarikan ini
+KH_TAG_CAP = 2000          # deskripsi Karirhub yang diperiksa per penarikan (label fresh graduate / MT)
+KH_TAG_BUDGET_SEC = 6 * 60
+KH_TAG_WORKERS = 6
+
+
+def karirhub_tags(job: dict, detail: dict) -> int:
+    """Label fresh graduate / management trainee dari deskripsi dan kualifikasi Karirhub."""
+    text = "\n".join(karier.html_to_text(detail.get(k)) for k in ("description", "qualification", "requirement", "responsibility")
+                     if detail.get(k))
+    tags = karier.job_tags(job["title"], text, job.get("function", ""))
+    years = detail.get("min_year_experience")
+    try:
+        years = int(float(years)) if years not in (None, "") else None
+    except (TypeError, ValueError):
+        years = None
+    # Isian "pengalaman minimal 0 tahun" = "Terbuka untuk tanpa pengalaman" di Karirhub, selama deskripsinya tidak
+    # mensyaratkan pengalaman dan posisinya bukan posisi senior.
+    if years == 0 and not karier.needs_experience(text) and not karier.is_senior(job["title"]):
+        tags |= karier.TAG_FRESH
+    return tags
+
+
+def tag_karirhub(jobs: list[dict], prev: dict) -> None:
+    """Periksa deskripsi lowongan Karirhub yang belum pernah diperiksa (terbaru dulu); yang lain memakai hasil kemarin."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    todo = []
+    for job in jobs:
+        if job["via"] != "karirhub":
+            continue
+        old = prev.get(job["id"]) or {}
+        if int(old.get("tags") or 0) & karier.TAG_CHECKED:
+            job["tags"] = old["tags"]
+        else:
+            todo.append(job)
+    if not todo:
+        return
+    todo.sort(key=lambda j: -j["posted"])
+    started = time.monotonic()
+
+    def one(job):
+        if job["id"] in DETAIL_SEEN:
+            return job, DETAIL_SEEN[job["id"]]
+        if time.monotonic() - started > KH_TAG_BUDGET_SEC:
+            return job, None
+        try:
+            return job, (fetch(f"{LISTING}/{job['id']}") or {}).get("data") or {}
+        except Exception:  # noqa: BLE001
+            return job, None
+
+    done = fresh = mt = 0
+    queue = [j for j in todo if j["id"] in DETAIL_SEEN] + [j for j in todo if j["id"] not in DETAIL_SEEN][:KH_TAG_CAP]
+    with ThreadPoolExecutor(max_workers=KH_TAG_WORKERS) as pool:
+        for job, detail in pool.map(one, queue):
+            if detail is None:
+                continue
+            job["tags"] = karirhub_tags(job, detail)
+            done += 1
+            fresh += bool(job["tags"] & karier.TAG_FRESH)
+            mt += bool(job["tags"] & karier.TAG_MT)
+    log(f"Label Karirhub: {done} deskripsi diperiksa ({fresh} fresh graduate, {mt} management trainee), "
+        f"antrean {len(todo) - done}")
 
 
 def fetch_karirhub(refs: dict, max_pages: int = MAX_PAGES):
@@ -805,7 +871,7 @@ def encode(jobs: list[dict], meta: dict) -> dict:
             j["id"], j["title"], ref("company", j["company"]), ref("city", j["city"]),
             ref("province", j["province"]), ref("platform", j["platform"]), ref("function", j["function"]),
             ref("industry", j["industry"]), ref("type", j["type"]), ref("edu", j["edu"]),
-            j["smin"], j["smax"], j["posted"], j["expires"], j["first"], ref("via", j["via"]),
+            j["smin"], j["smax"], j["posted"], j["expires"], j["first"], ref("via", j["via"]), int(j.get("tags") or 0),
         ])
     lists = {name: list(table) for name, table in tables.items()}
     lists["logo"] = [logos.get(c, "") for c in lists["company"]]
@@ -912,7 +978,9 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
         log("Tidak ada data yang berhasil ditarik; berkas lama tidak diubah.")
         return 1
 
+    DETAIL_SEEN.clear()
     checked = fill_locations(fresh, prev, checked, refs, started)
+    tag_karirhub(fresh, prev)
 
     jobs, added, closed = merge(prev, fresh, complete, day_number(now), now_ts)
     # Lowongan yang sama perusahaannya (termasuk dari Karirhub) memakai logo resmi yang sudah dicek bisa tampil.
@@ -929,8 +997,6 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
         # Lowongan yang detailnya sudah dicek tapi lokasinya tetap tak diketahui: tidak dicek ulang.
         "checked": sorted(i for i in checked if i in unresolved),
     }
-    write_json(jobs_path, encode(jobs, meta))
-    write_json(links_path, {j["id"]: j["link"] for j in jobs if j.get("link")})
     # Deskripsi lowongan situs perusahaan: yang baru ditarik, atau yang tersimpan dari hari sebelumnya.
     details = {}
     for j in jobs:
@@ -939,6 +1005,11 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
         text = j["desc"] if j.get("desc") is not None else stored.get(j["id"])
         if text is not None:
             details[j["id"]] = karier.tidy_desc(text)
+        # Label fresh graduate / MT dari deskripsi situs perusahaan (Disnakerja sudah diberi label saat dibaca).
+        if j["via"] != disnakerja.VIA:
+            j["tags"] = karier.job_tags(j["title"], details.get(j["id"]) or "", j.get("function", ""))
+    write_json(jobs_path, encode(jobs, meta))
+    write_json(links_path, {j["id"]: j["link"] for j in jobs if j.get("link")})
     write_details(out_dir, details, now)
     stats = update_stats(read_json(stats_path, {}), jobs, None if first_run else added,
                          None if first_run else closed, now)

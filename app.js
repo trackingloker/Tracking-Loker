@@ -2,7 +2,7 @@
 import {
   decode, filterJobs, sortJobs, countBy, salaryBy, summarize, salaryText, juta, ribu, ago, dateText, timeText,
   karirhubUrl, initials, hue, htmlToText, filtersFromQuery, filtersToQuery, activeCount, cityLabel, fold, detailShard, yearsFrom,
-  EMPTY_FILTERS, MAJORS, findMajor, isCompanySite, buildJobSuggestions, buildMajorSuggestions, matchSuggestions, splitMatch, EDU_CHOICES, EDU_SHORT, EDU_LEVEL, GAJI_CHOICES, WAKTU_CHOICES, SORTS, DIRECT, KARIRHUB_DETAIL_API
+  EMPTY_FILTERS, MAJORS, findMajor, isCompanySite, CATEGORIES, CATEGORY_BY_KEY, buildJobSuggestions, buildMajorSuggestions, matchSuggestions, splitMatch, EDU_CHOICES, EDU_SHORT, EDU_LEVEL, GAJI_CHOICES, WAKTU_CHOICES, SORTS, DIRECT, KARIRHUB_DETAIL_API
 } from './logic.js';
 import {
   readCV, pdfLines, recommend, whyText, atsReport, keywordTips, compareJob, storable, isStrong, sourcesOf, matchMajor,
@@ -30,7 +30,10 @@ const MOODS = [
   { tone: 'blue', title: 'Lulusan SMA/SMK', unit: 'lowongan', icon: 'star', img: 'foto-mekanik.webp', fit: 'right:0', patch: { edu: 'sma' } },
   { tone: 'green', title: 'Mau magang dulu', unit: 'magang', icon: 'cap', img: 'foto-magang.webp', fit: 'right:0', patch: { types: ['Magang'] } },
   { tone: 'pink', title: 'Baru masuk hari ini', unit: 'dalam 24 jam', icon: 'bolt', img: 'foto-chef.webp', fit: 'right:5%', patch: { waktu: '1' } },
-  { tone: 'yellow', title: 'Gaji di atas 5 juta', unit: 'lowongan', icon: 'coin', img: 'foto-perawat.webp', fit: 'right:7%', patch: { gaji: '5' } }
+  { tone: 'yellow', title: 'Gaji di atas 5 juta', unit: 'lowongan', icon: 'coin', img: 'foto-perawat.webp', fit: 'right:7%', patch: { gaji: '5' } },
+  // Dari kualifikasi lowongannya: terbuka untuk lulusan baru / tanpa pengalaman, atau program MT/ODP.
+  { tone: 'purple', title: 'Fresh graduate', unit: 'lowongan', icon: 'heart', img: 'foto-fresh-graduate.webp', fit: 'right:4%', patch: { kat: 'fresh' } },
+  { tone: 'orange', title: 'Management trainee', unit: 'program', icon: 'star', img: 'foto-management-trainee.webp', fit: 'right:0', patch: { kat: 'mt' } }
 ];
 
 function todayMessage() {
@@ -291,6 +294,14 @@ function renderControls() {
     return `<button type="button" class="chip${on ? ' on' : ''}" data-jur="${esc(on ? '' : label)}">${esc(label)} <small>${ribu(n)}</small></button>`;
   });
   $('#quick').innerHTML = `<h2 class="quick-label" id="quick-label">Cari sesuai jurusan</h2>${chips.join('')}`;
+  // Pintasan kategori seperti menu Disnakerja, untuk lowongan dari semua sumber.
+  const katBase = filterJobs(all, f, ref, 'kat');
+  const katChips = CATEGORIES.map((c) => {
+    const n = katBase.filter(c.test).length;
+    const on = f.kat === c.key;
+    return n || on ? `<button type="button" class="chip${on ? ' on' : ''}" data-kat="${on ? '' : c.key}">${esc(c.label)} <small>${ribu(n)}</small></button>` : '';
+  });
+  $('#kat-quick').innerHTML = `<h2 class="quick-label" id="kat-label">Kategori</h2>${katChips.join('')}`;
   if (document.activeElement !== $('#jur')) $('#jur').value = f.jur;
 
   renderActiveChips();
@@ -302,6 +313,7 @@ function renderActiveChips() {
   const add = (label, patch) => chips.push({ label, patch });
   if (f.q) add(`“${f.q}”`, { q: '' });
   if (f.jur) add(`Jurusan: ${findMajor(f.jur)?.label || f.jur}`, { jur: '' });
+  if (f.kat && CATEGORY_BY_KEY.get(f.kat)) add(CATEGORY_BY_KEY.get(f.kat).label, { kat: '' });
   if (f.prov) add(f.prov, { prov: '', city: '' });
   if (f.city) add(cityLabel(f.city), { city: '' });
   if (f.fn) add(f.fn, { fn: '' });
@@ -1702,6 +1714,8 @@ function bindEvents() {
     }
     const jurChip = t.closest('[data-jur]');
     if (jurChip) { setFilters({ jur: jurChip.dataset.jur }, false); return; }
+    const katChip = t.closest('[data-kat]');
+    if (katChip) { setFilters({ kat: katChip.dataset.kat }, false); return; }
     const unset = t.closest('[data-unset]');
     if (unset) { setFilters($('#active-chips')._patches[+unset.dataset.unset], false); return; }
     if (t.closest('[data-reset]')) { state.f = { ...EMPTY_FILTERS, types: [] }; apply(false); return; }

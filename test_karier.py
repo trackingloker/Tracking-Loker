@@ -719,12 +719,15 @@ DK_LINK = "https://www.disnakerja.com/lowongan-kerja-pt-sanbe-farma/"
 
 class TestDisnakerja(Base):
     def routes(self, modified="2026-10-17T02:00:00", api=True, robots="User-agent: *\nDisallow: /wp-admin/\n"):
-        posts = [{"link": DK_LINK, "date_gmt": "2026-10-17T01:00:00", "modified_gmt": modified},
+        posts = [{"link": DK_LINK, "date_gmt": "2026-10-17T01:00:00", "modified_gmt": modified, "categories": [7, 9, 12]},
                  {"link": "https://www.disnakerja.com/blog/tips-wawancara/", "date_gmt": "2026-10-17T01:00:00", "modified_gmt": ""},
                  {"link": "https://www.disnakerja.com/pt-lama/", "date_gmt": "2026-08-01T01:00:00", "modified_gmt": ""}]
         routes = {"disnakerja.com/robots.txt": lambda u, b: (robots, "text/plain"),
                   "disnakerja.com/lowongan-kerja-pt-sanbe-farma/": lambda u, b: (DK_POST, "text/html")}
         if api:
+            routes["disnakerja.com/wp-json/wp/v2/categories"] = lambda u, b: [
+                {"id": 7, "name": "MT / ODP", "slug": "mt-odp"}, {"id": 9, "name": "BUMN", "slug": "bumn"},
+                {"id": 12, "name": "Strata 1", "slug": "strata-1"}, {"id": 15, "name": "Intern", "slug": "intern"}]
             routes["disnakerja.com/wp-json/wp/v2/posts"] = lambda u, b: posts if "page=1&" in u else HTTPError(u, 400, "x", {}, BytesIO())
         else:
             routes["disnakerja.com/page/"] = lambda u, b: HTTPError(u, 404, "x", {}, BytesIO())
@@ -749,6 +752,9 @@ class TestDisnakerja(Base):
         self.assertEqual(admin["expires"], int(datetime(2026, 10, 30, tzinfo=karier.WIB).timestamp()))
         self.assertEqual(admin["posted"], int(datetime(2026, 10, 17, 1, 0, tzinfo=timezone.utc).timestamp()))  # dari API
         self.assertTrue(admin["logo"].endswith("logo-sanbe-farma.png"))
+        # Menu kategori Disnakerja: MT/ODP jadi bidang Management Trainee, BUMN jadi industri.
+        self.assertEqual((admin["function"], admin["industry"]), ("Management Trainee", "BUMN"))
+        self.assertEqual(admin["tags"], karier.TAG_CHECKED | karier.TAG_MT)  # kategori MT/ODP, tanpa kalimat fresh graduate
         self.assertNotIn("desc", admin)  # isi artikel tidak disalin
         opened = [u for u, _ in http.calls if "/wp-json/" not in u and "robots" not in u]
         self.assertEqual(opened, [DK_LINK])  # artikel blog dan artikel lama tidak dibuka
@@ -824,6 +830,12 @@ class TestDisnakerja(Base):
         jobs, _ = disnakerja.parse_post(variants, "https://www.disnakerja.com/lowongan-kerja-pt-bina-karya-persero/", REFS, NOW, 1)
         self.assertEqual([(j["title"], j["edu"]) for j in jobs][:3],
                          [("Team Leader", "Sarjana"), ("Ahli Geoteknik", "Sarjana"), ("Pengemudi", "")])
+        # Baris sertifikasi yang menyebut nama posisi bukan syarat pendidikan; D4 setara S1.
+        bina = ('<h1>PT Bina Karya (Persero)</h1><ul><li>Pendidikan SMA/K, D3, D4/S1</li></ul><p><strong>4. Ahli Geoteknik</strong></p>'
+                '<ul><li>Pendidikan: S1 Sipil/Geologi.</li><li>Sertifikasi: SKK Ahli Geoteknik Madya, Jenjang 8.</li></ul>'
+                '<p><strong>5. Ahli Arsitektur</strong></p><ul><li>Pendidikan: S1/D4 Teknik Arsitektur.</li></ul>')
+        jobs, _ = disnakerja.parse_post(bina, "https://www.disnakerja.com/lowongan-kerja-pt-bina-karya-persero/", REFS, NOW, 1)
+        self.assertEqual([j["edu"] for j in jobs], ["Sarjana", "Sarjana"])
         # Tanggal "Last Update" berbahasa Inggris bila API tidak tersedia.
         self.assertEqual(disnakerja._date_text("October 22, 2026October 22, 2026", NOW),
                          int(datetime(2026, 10, 22, tzinfo=karier.WIB).timestamp()))
@@ -831,6 +843,17 @@ class TestDisnakerja(Base):
         a = {"company": "PT A", "title": "Sales", "posted": 1, "id": "x1"}
         b = {"company": "PT A", "title": "SALES", "posted": 2, "id": "x2"}
         self.assertEqual([j["id"] for j in disnakerja.dedupe([a, b])], ["x2"])
+
+    def test_kategori_jadi_label(self):
+        self.assertEqual(disnakerja.from_categories(["Fresh Graduate", "Palm Oil", "SMA/K"]),
+                         {"function": "Fresh Graduate", "industry": "Perkebunan Kelapa Sawit", "type": ""})
+        self.assertEqual(disnakerja.from_categories(["Intern", "Oil & Gas"]),
+                         {"function": "", "industry": "Minyak & Gas", "type": "Magang"})
+        self.assertEqual(disnakerja.from_categories(["Instansi", "Mining"])["industry"], "Instansi Pemerintah")
+        # Tanpa API: kategori dibaca dari label "Kategori" di halaman artikel.
+        page = '<h1>PT X</h1><ul><li>Kategori: Manufaktur, Intern</li></ul><p><strong>1. Operator</strong></p>'
+        jobs, _ = disnakerja.parse_post(page, "https://www.disnakerja.com/pt-x/", REFS, NOW, 1)
+        self.assertEqual((jobs[0]["industry"], jobs[0]["type"]), ("Manufaktur", "Magang"))
 
     def test_penanda_halaman(self):
         self.assertTrue(disnakerja.is_post("https://www.disnakerja.com/pt-uniflex-kemasindah/"))

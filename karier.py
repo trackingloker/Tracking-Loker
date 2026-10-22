@@ -220,6 +220,72 @@ def _tidy_lines(text: str, limit: int = DESC_LIMIT) -> str:
     return text
 
 
+# ---------------------------------------------------------------- label fresh graduate / management trainee
+
+TAG_FRESH = 1      # terbuka untuk fresh graduate / tanpa pengalaman, menurut judul, deskripsi, atau kualifikasinya
+TAG_MT = 2         # program Management Trainee / ODP / sejenisnya
+TAG_CHECKED = 4    # deskripsinya sudah diperiksa (lowongan tanpa label pun ditandai supaya tidak diperiksa ulang)
+
+FRESH_SAYS = re.compile(
+    r"fresh ?grad|lulusan baru|baru lulus|baru saja lulus|tanpa pengalaman|belum (memiliki |punya |ada )?pengalaman|"
+    r"tidak (harus|wajib|perlu|diwajibkan|disyaratkan|membutuhkan) (memiliki |punya )?(pengalaman|berpengalaman)|"
+    r"pengalaman (kerja )?(tidak (wajib|harus|diperlukan|disyaratkan|dibutuhkan)|bukan syarat)|"
+    r"(tidak|non) berpengalaman (dipersilakan|boleh|bisa|diterima)|berpengalaman (atau|maupun|/) (tidak|belum)|"
+    r"no (prior |previous |work )?experiences? (is )?(required|needed|necessary)|experience (is )?not (required|necessary)|"
+    r"entry[ -]level|new graduates?|recent graduates?|(?<![\d.,])0\s*(?:[-\u2013]\s*\d+\s*)?(tahun|thn|years?)|"
+    r"(terbuka|dibuka|cocok|welcome) (untuk|bagi|for) (fresh|lulusan|pemula|para lulusan)", re.I)
+# Judul yang jelas bukan untuk lulusan baru, kecuali judulnya sendiri menyebut fresh graduate.
+SENIOR_TITLE = re.compile(
+    r"\b(manager|manajer|head|kepala|lead|leader|senior|sr\.?|supervisor|spv|superintendent|koordinator|coordinator|"
+    r"director|direktur|chief|vp|avp|gm|general manager|principal|expert|ahli madya|ahli utama)\b", re.I)
+MT_TITLE = re.compile(
+    r"management trainee|(?<![a-z])mt(?![a-z])|(?<![a-z])odp(?![a-z])|officer development|management development program|"
+    r"(?<![a-z])(mdp|gdp|cdp|bdp|ldp)(?![a-z])|graduate (trainee|development|management) program|leadership development program|"
+    r"future leaders? program|young leaders? program|program pengembangan (calon )?(pemimpin|staf|karyawan)|"
+    r"(?<![a-z])(pcpm|pps|pkp) (bri|bni)|staff development program|ikatan dinas", re.I)
+MT_TEXT = re.compile(
+    r"program management trainee|management trainee program|(program|batch) (mt|odp)\b|officer development program|"
+    r"management development program|graduate development program|leadership development program", re.I)
+
+
+NEEDS_EXP = re.compile(
+    r"(pengalaman|berpengalaman|experience)[^.\n]{0,40}?(minimal|min\.?|minimum|at least|lebih dari|sekurang[- ]kurangnya)\s*"
+    r"([1-9]|satu|dua|tiga)|(minimal|min\.?|minimum|at least)\s*([1-9]\d?)\s*\+?\s*(tahun|thn|years?)|"
+    r"(?<![\d.,])([1-9]\d?)\s*\+?\s*(tahun|thn|years?) (pengalaman|of experience|experience|berpengalaman)", re.I)
+
+
+def needs_experience(text: str) -> bool:
+    """Deskripsi mensyaratkan pengalaman minimal 1 tahun atau lebih."""
+    return bool(NEEDS_EXP.search(text or ""))
+
+
+def is_senior(title: str) -> bool:
+    return bool(SENIOR_TITLE.search(title or ""))
+
+
+def job_tags(title: str, text: str = "", function: str = "", categories: str = "") -> int:
+    """Label lowongan dari judul, deskripsi, dan kualifikasinya (bukan tebakan dari judul saja).
+
+    Fresh graduate: judul atau isinya menyebut terbuka untuk lulusan baru / tanpa pengalaman / pengalaman 0 tahun,
+    atau bidangnya di sumber "Fresh Graduate", atau kategorinya Fresh Graduate tanpa syarat pengalaman minimal.
+    Judul senior (manager, supervisor, kepala, dst.) tidak ikut kecuali judulnya sendiri menyebut fresh graduate.
+    Management trainee: judulnya program MT/ODP/sejenis, bidangnya "Management Trainee", atau isinya menjelaskan
+    program itu dan judulnya bukan posisi senior.
+    """
+    title = title or ""
+    body = text or ""
+    tags = TAG_CHECKED
+    senior = is_senior(title)
+    needs_exp = needs_experience(body)
+    if FRESH_SAYS.search(title) or (not senior and (FRESH_SAYS.search(body) or function == "Fresh Graduate"
+                                                     or (re.search(r"fresh ?grad", categories, re.I) and not needs_exp))):
+        tags |= TAG_FRESH
+    if not senior and (MT_TITLE.search(title) or function == "Management Trainee" or MT_TEXT.search(body)
+                       or re.search(r"(?<![a-z])(mt|odp)(?![a-z])|management trainee", categories, re.I)):
+        tags |= TAG_MT
+    return tags
+
+
 def _is_heading(line: str) -> bool:
     line = line.strip()
     return len(line) <= 45 and not line.startswith("\u2022") and not re.search(r"[.;!?]\s*$|[.;!?]\s", line)

@@ -8,6 +8,7 @@ from io import BytesIO
 from pathlib import Path
 from urllib.error import HTTPError
 
+import karier
 import update
 
 PROV_BALI = "c63a30a8-db19-48a3-8782-0680555ae95b"
@@ -91,14 +92,15 @@ class FakeApi:
 
 class Base(unittest.TestCase):
     def setUp(self):
-        self._fetch, self._sleep, self._portals = update.fetch, update.sleep, update.PORTALS
+        self._fetch, self._sleep, self._portals, self._tagcap = update.fetch, update.sleep, update.PORTALS, update.KH_TAG_CAP
         update.PORTALS = []  # situs info lowongan diuji terpisah dengan respons tiruan (test_karier.TestDisnakerja)
+        update.KH_TAG_CAP = 0  # label dari deskripsi Karirhub diuji terpisah (TestLabel)
         update.sleep = lambda s: None
         update.log = lambda msg: None
         self.dir = Path(tempfile.mkdtemp())
 
     def tearDown(self):
-        update.fetch, update.sleep, update.PORTALS = self._fetch, self._sleep, self._portals
+        update.fetch, update.sleep, update.PORTALS, update.KH_TAG_CAP = self._fetch, self._sleep, self._portals, self._tagcap
 
     def use(self, api):
         update.fetch = api
@@ -330,6 +332,52 @@ class TestRun(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLabel(Base):
+    """Label fresh graduate / management trainee dari deskripsi dan kualifikasi, bukan dari judul saja."""
+
+    def test_aturan_label(self):
+        t = karier.job_tags
+        fresh, mt, cek = karier.TAG_FRESH, karier.TAG_MT, karier.TAG_CHECKED
+        self.assertEqual(t("Staff Admin", "Fresh graduate dipersilakan melamar. Pengalaman 1 tahun nilai tambah"), cek | fresh)
+        self.assertEqual(t("Staff Admin", "Pengalaman minimal 2 tahun di bidang yang sama"), cek)
+        self.assertEqual(t("Sales Manager", "Fresh graduate welcome"), cek)            # judul senior
+        self.assertEqual(t("Operator Produksi", "Pengalaman 0-1 tahun"), cek | fresh)
+        self.assertEqual(t("Operator Produksi", "Pengalaman 10 tahun di pabrik"), cek)  # bukan "0 tahun"
+        self.assertEqual(t("Staff IT", "Tidak harus memiliki pengalaman"), cek | fresh)
+        self.assertEqual(t("Customer Service", "No experience required"), cek | fresh)
+        self.assertEqual(t("Management Trainee 2026", "Program pengembangan"), cek | mt)
+        self.assertEqual(t("Officer Development Program (ODP) - Talent Sourcing", "Pendidikan S1"), cek | mt)
+        self.assertEqual(t("Area Manager", "Kami membuka program management trainee"), cek)
+        self.assertEqual(t("SMT Operator", ""), cek)                                    # "smt" bukan MT
+        self.assertEqual(t("Kasir", "", "Fresh Graduate"), cek | fresh)                  # bidang di sumber
+        self.assertEqual(t("Kasir", "Minimal 2 tahun pengalaman", "", "Fresh Graduate"), cek)  # kategori kalah oleh syarat
+
+    def test_karirhub_diperiksa_sekali(self):
+        rows = [vacancy(1, title="Staff Admin"), vacancy(2, title="Staff Gudang"), vacancy(3, title="Management Trainee"),
+                vacancy(4, title="Kasir"), vacancy(5, title="Supervisor Produksi")]
+        details = {
+            "01a1-0001": {"description": "<p>Fresh graduate dipersilakan melamar</p>"},
+            "01a1-0002": {"qualification": "<ul><li>Pengalaman minimal 3 tahun</li></ul>", "min_year_experience": 0},
+            "01a1-0003": {"description": "<p>Program 12 bulan</p>"},
+            "01a1-0004": {"description": "<p>Melayani pembeli</p>", "min_year_experience": 0},
+            "01a1-0005": {"min_year_experience": 0},
+        }
+        api = self.use(FakeApi(rows, details=details))
+        update.KH_TAG_CAP = 100
+        update.run(self.dir, now=NOW)
+        data = self.read("jobs.json")
+        at = data["fields"].index("tags")
+        tags = {r[0]: r[at] for r in data["jobs"]}
+        fresh, mt, cek = karier.TAG_FRESH, karier.TAG_MT, karier.TAG_CHECKED
+        self.assertEqual(tags, {"01a1-0001": cek | fresh, "01a1-0002": cek, "01a1-0003": cek | mt,
+                                "01a1-0004": cek | fresh, "01a1-0005": cek})
+        # Penarikan berikutnya: label kemarin dipakai lagi, deskripsi tidak dibuka ulang.
+        api.calls.clear()
+        update.run(self.dir, now=NOW)
+        self.assertFalse([c for c in api.calls if c[0].startswith(update.LISTING + "/")])
+        self.assertEqual({r[0]: r[at] for r in self.read("jobs.json")["jobs"]}, tags)
 
 
 # Uji situs karier perusahaan (karier.py) ikut berjalan lewat "python3 -m unittest test_update" di GitHub Actions.

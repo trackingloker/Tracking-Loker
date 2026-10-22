@@ -25,10 +25,10 @@ BASE = "https://www.disnakerja.com"
 VIA = "disnakerja"
 PLATFORM = "Disnakerja"
 WINDOW_DAYS = 30          # artikel lebih lama dari ini tidak diambil; lowongan tanpa batas lamaran tayang 30 hari
-POST_CAP = 300            # artikel baru yang dibuka per penarikan (sisanya di penarikan berikutnya)
+POST_CAP = 1000           # artikel baru yang dibuka per penarikan: cukup untuk seluruh jendela 30 hari sekaligus
 LIST_PAGES = 40           # halaman daftar maksimal bila API WordPress tidak tersedia
-BUDGET_SEC = 6 * 60
-WORKERS = 4
+BUDGET_SEC = 10 * 60
+WORKERS = 6
 # Bagian situs yang bukan artikel lowongan.
 RESERVED = {"page", "category", "tag", "blog", "author", "wp-content", "wp-json", "wp-admin", "wp-includes", "feed", "search",
             "about", "tentang", "kontak", "contact", "privacy-policy", "kebijakan-privasi", "disclaimer", "sitemap", "pasang-iklan",
@@ -41,8 +41,8 @@ NOT_POSITION = re.compile(
 EDU_LEVELS = [  # dari yang terendah: "Minimal SMA/SMK" berarti terbuka untuk lulusan SMA
     ("SMP atau Sederajat", r"\bsmp\b|\bsltp\b"),
     ("SMA atau Sederajat", r"\bsma\b|\bsmk\b|\bslta\b|\bma\b(?= ?/)|sma/k|sederajat"),
-    ("Diploma", r"\bd-?[134]\b|\bdiploma\b|\bstrata 1/diploma\b"),
-    ("Sarjana", r"\bs-?1\b|\bsarjana\b|\bstrata[- ]?1\b|\bbachelor"),
+    ("Diploma", r"\bd-?[123]\b|\bdiploma\b"),
+    ("Sarjana", r"\bs-?1\b|\bd-?4\b|\bsarjana\b|\bstrata[- ]?1\b|\bbachelor"),  # D4 setara sarjana terapan
     ("Magister", r"\bs-?2\b|\bmagister\b|\bmaster\b|\bstrata[- ]?2\b"),
 ]
 EDU_LINE = re.compile(r"pendidikan|lulusan|minimal|education|degree|ijazah|jenjang", re.I)
@@ -96,7 +96,7 @@ def list_rest(since: datetime) -> list[dict]:
         try:
             rows = karier.get_json(f"{BASE}/wp-json/wp/v2/posts", {
                 "per_page": 50, "page": page, "after": after, "orderby": "date", "order": "desc",
-                "_fields": "link,date_gmt,modified_gmt"})
+                "_fields": "link,date_gmt,modified_gmt,categories"})
         except HTTPError as err:
             if err.code == 400 and page > 1:  # halaman melewati batas: semua sudah terbaca
                 break
@@ -106,7 +106,8 @@ def list_rest(since: datetime) -> list[dict]:
         for r in rows:
             link = r.get("link") or ""
             if is_post(link):
-                out.append({"link": link, "posted": _utc(r.get("date_gmt")), "modified": _utc(r.get("modified_gmt"))})
+                out.append({"link": link, "posted": _utc(r.get("date_gmt")), "modified": _utc(r.get("modified_gmt")),
+                            "cats": [c for c in r.get("categories") or [] if isinstance(c, int)]})
         if len(rows) < 50:
             break
     return out
@@ -270,6 +271,41 @@ HEADING = re.compile(r"<(h[2-5])\b[^>]*>(.*?)</\1>", re.S | re.I)
 NUMBERED = re.compile(r"^\d{1,2}\s*[.)]\s*\S")
 
 
+# Menu kategori Disnakerja menjadi label yang sama dengan data lain: bidang (Management Trainee, Fresh Graduate),
+# industri/jenis perusahaan (BUMN, Instansi, Kelapa Sawit, Pertambangan, Minyak & Gas, Manufaktur), dan tipe Magang.
+CAT_FUNCTION = [(r"\bmt\b|\bodp\b|management trainee|officer development", "Management Trainee"),
+                (r"fresh ?graduate|lulusan baru", "Fresh Graduate")]
+CAT_INDUSTRY = [(r"\bbumn\b", "BUMN"), (r"instansi|pemerintah|\bcpns\b|\bpppk\b", "Instansi Pemerintah"),
+                (r"palm ?oil|sawit", "Perkebunan Kelapa Sawit"), (r"mining|tambang", "Pertambangan"),
+                (r"oil ?(&|and|dan)? ?gas|migas", "Minyak & Gas"), (r"manufaktur|manufacturing|pabrik", "Manufaktur")]
+CAT_INTERN = re.compile(r"\bintern(ship)?\b|magang", re.I)
+
+
+def from_categories(categories: list[str]) -> dict:
+    """{"function", "industry", "type"} dari nama kategori artikel (urutan prioritas sesuai daftar di atas)."""
+    text = " | ".join(c for c in categories or [] if c).lower()
+    pick = lambda rules: next((name for pat, name in rules if re.search(pat, text)), "")  # noqa: E731
+    return {"function": pick(CAT_FUNCTION), "industry": pick(CAT_INDUSTRY), "type": "Magang" if CAT_INTERN.search(text) else ""}
+
+
+def load_categories() -> dict[int, str]:
+    """{id: nama} semua kategori WordPress Disnakerja. Kosong bila API tidak tersedia."""
+    out: dict[int, str] = {}
+    for page in range(1, 6):
+        try:
+            rows = karier.get_json(f"{BASE}/wp-json/wp/v2/categories", {"per_page": 100, "page": page, "_fields": "id,name,slug"})
+        except Exception:  # noqa: BLE001
+            break
+        if not isinstance(rows, list) or not rows:
+            break
+        for r in rows:
+            if isinstance(r, dict) and isinstance(r.get("id"), int):
+                out[r["id"]] = html.unescape(str(r.get("name") or r.get("slug") or ""))
+        if len(rows) < 100:
+            break
+    return out
+
+
 def find_positions(region: str, company: str) -> list[tuple[int, int, str]]:
     """Nama posisi di artikel Disnakerja: baris tebal sendiri (biasanya bernomor, "1. Team Leader") atau subjudul.
 
@@ -318,7 +354,8 @@ def _date_text(text: str, now: datetime) -> int:
 def edu_for(section: str, title: str, others: list[str]) -> str:
     """Jenjang pendidikan untuk satu posisi. Baris "Pendidikan minimal D3/S1 untuk Quality Assurance" dipakai untuk
     posisi yang disebut namanya; baris untuk posisi lain dilewati."""
-    lines = [x for x in section.lower().split("\n") if EDU_LINE.search(x)]
+    # Hanya baris yang benar-benar menyebut jenjang ("Sertifikasi: SKK Ahli Geoteknik, Jenjang 8" bukan pendidikan).
+    lines = [x for x in section.lower().split("\n") if EDU_LINE.search(x) and any(re.search(p, x) for _, p in EDU_LEVELS)]
     me = title.lower()
     own = [x for x in lines if me in x]
     if own:
@@ -328,7 +365,8 @@ def edu_for(section: str, title: str, others: list[str]) -> str:
     return edu_level("\n".join(lines)) if lines else ""
 
 
-def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int = 0) -> tuple[list[dict], dict]:
+def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int = 0,
+               categories: list[str] | None = None) -> tuple[list[dict], dict]:
     """Lowongan per posisi dari satu artikel. Mengembalikan (lowongan, info) untuk laporan cek."""
     company = company_name(page)
     region = _region(page)
@@ -338,7 +376,10 @@ def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int
         "pendidikan": label_value(lines, r"pendidikan( terakhir| minimal)?|jenjang pendidikan|education"),
         "tipe": label_value(lines, r"tipe pekerjaan|jenis pekerjaan|tipe|status( kerja| pekerjaan)?|job type"),
         "update": label_value(lines, r"last update|terakhir diperbarui|diperbarui|update"),
+        "kategori": label_value(lines, r"kategori|categories|category"),
     }
+    cats = [c for c in (categories or []) if c] or [x.strip() for x in re.split(r"[,|/]", meta["kategori"]) if x.strip()]
+    labels = from_categories(cats)
     # Tanggal terbit dari API WordPress paling tepat; "Last Update" di halaman hanya cadangan.
     posted = posted_hint or published(page) or _date_text(meta["update"], now) or int(now.timestamp())
     positions = find_positions(region, company)
@@ -352,7 +393,7 @@ def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int
     bold = [raw for _, _, raw in bold_lines(region)]
     info = {"perusahaan": company, "posisi": [t for _, _, t in positions],
             "baris_tebal_lain": [b for b in bold if _clean_title(b) not in {t for _, _, t in positions}][:10],
-            "meta": meta, "tanggal": posted,
+            "meta": meta, "tanggal": posted, "kategori": cats, "label": labels,
             # Untuk menelusuri bila posisi tidak terbaca: ukuran bagian artikel dan jumlah teks tebal.
             "panjang_artikel": len(region), "tebal_di_halaman": len(re.findall(r"<(strong|b)\b", page, re.I)),
             "tebal_di_artikel": len(re.findall(r"<(strong|b)\b", region, re.I)),
@@ -391,6 +432,11 @@ def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int
         else:
             where = ("", "")
         ident = hashlib.md5(title.lower().encode()).hexdigest()[:8]
+        # Label dari kualifikasi posisi ini; kategori "Fresh Graduate" hanya berlaku bila tidak ada syarat pengalaman.
+        tags = karier.job_tags(title, section, "", " | ".join(cats))
+        function = labels["function"]
+        if function == "Fresh Graduate" and not tags & karier.TAG_FRESH:
+            function = ""
         jobs.append({
             "id": f"dk-{slug}-{ident}",
             "title": title,
@@ -399,9 +445,9 @@ def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int
             "city": where[0],
             "province": where[1],
             "platform": PLATFORM,
-            "function": "",
-            "industry": "",
-            "type": work_type(title + "\n" + section) or karier.norm_type(meta["tipe"]) or work_type(meta["tipe"]),
+            "function": function,
+            "industry": labels["industry"],
+            "type": work_type(title + "\n" + section) or labels["type"] or karier.norm_type(meta["tipe"]) or work_type(meta["tipe"]),
             "edu": edu_for(section, title, titles) or edu_level(meta["pendidikan"]),
             "smin": 0,
             "smax": 0,
@@ -409,6 +455,7 @@ def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int
             "expires": expires,
             "via": VIA,
             "link": link,
+            "tags": tags,
         })
     return jobs, info
 
@@ -471,13 +518,14 @@ def fetch(refs: dict, prev: dict, now: datetime | None = None, state: dict | Non
             if not links:
                 break
             seen.update(links)
-            posts += [{"link": u, "posted": (state.get(u) or {}).get("p", 0), "modified": 0} for u in links]
+            posts += [{"link": u, "posted": (state.get(u) or {}).get("p", 0), "modified": 0, "cats": []} for u in links]
             # Semua artikel di halaman ini sudah tercatat lebih tua dari jendela 30 hari: halaman berikutnya lebih tua lagi.
             dates = [(state.get(u) or {}).get("p", 0) for u in links]
             if all(dates) and max(dates) < cutoff:
                 break
             karier.sleep(0.5)
 
+    names = load_categories() if method == "api" else {}
     jobs: list[dict] = []
     todo = []
     for p in posts:
@@ -503,7 +551,7 @@ def fetch(refs: dict, prev: dict, now: datetime | None = None, state: dict | Non
         except Exception:  # noqa: BLE001
             return p, None
         karier.sleep(0.3)
-        return p, parse_post(page, p["link"], refs, now, p["posted"])
+        return p, parse_post(page, p["link"], refs, now, p["posted"], [names.get(c, "") for c in p.get("cats") or []])
 
     opened = parsed = 0
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
@@ -551,11 +599,14 @@ def check(refs: dict, now: datetime | None = None, sample: int = 8) -> dict:
     except Exception as err:  # noqa: BLE001
         report["halaman_daftar"] = {"status": f"gagal: {str(err)[:160]}"}
     samples = []
+    names = load_categories()
+    report["kategori_api"] = len(names)
+    cats_of = {p["link"]: p.get("cats") or [] for p in (posts if str(report.get("api", "")).startswith("ok") else [])}
     for link in links[:sample]:
         try:
             page, _ = karier.get_text(link)
-            jobs, info = parse_post(page, link, refs, now)
-            info["lowongan"] = [{k: j[k] for k in ("title", "city", "province", "edu", "type")} for j in jobs]
+            jobs, info = parse_post(page, link, refs, now, 0, [names.get(c, "") for c in cats_of.get(link, [])])
+            info["lowongan"] = [{k: j[k] for k in ("title", "city", "province", "edu", "type", "function", "industry")} for j in jobs]
             info["logo"] = logo_of(page)
             samples.append({"url": link, **info})
         except Exception as err:  # noqa: BLE001

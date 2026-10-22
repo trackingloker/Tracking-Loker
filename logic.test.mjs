@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   decode, filterJobs, sortJobs, countBy, median, salaryBy, salaryText, juta, ribu, ago, dateText, timeText,
   slug, karirhubUrl, initials, htmlToText, filtersFromQuery, filtersToQuery, activeCount, summarize, cityLabel, tidy, typeLabel, findMajor, majorFilter, MAJORS,
-  EMPTY_FILTERS, detailShard, yearsFrom, buildJobSuggestions, buildMajorSuggestions, matchSuggestions, splitMatch, prettyTitle, suggestKey
+  EMPTY_FILTERS, detailShard, yearsFrom, buildJobSuggestions, buildMajorSuggestions, matchSuggestions, splitMatch, prettyTitle, suggestKey, CATEGORY_BY_KEY
 } from './logic.js';
 
 const NOW = 1791943200; // 14 Okt 2026 06.00 WIB
@@ -308,4 +308,19 @@ test('judul kapital dirapikan dan bagian cocok ditebalkan', () => {
   assert.deepEqual(splitMatch('Ekonomi & Perbankan', 'ek'), ['', 'Ek', 'onomi & Perbankan']);
   assert.deepEqual(splitMatch('Ilmu Komunikasi', 'kom'), ['Ilmu ', 'Kom', 'unikasi']);
   assert.deepEqual(splitMatch('PT Bank Central Asia Tbk', 'bank cen'), ['PT ', 'Bank Cen', 'tral Asia Tbk']);
+});
+
+test('kategori fresh graduate dan MT memakai label hasil pemeriksaan deskripsi', () => {
+  const fresh = CATEGORY_BY_KEY.get('fresh').test;
+  const mt = CATEGORY_BY_KEY.get('mt').test;
+  const job = (o) => ({ fn: '', titleFold: '', coFold: '', indFold: '', type: '', tags: 0, ...o });
+  // Sudah diperiksa: label yang menentukan, bukan judul.
+  assert.equal(fresh(job({ tags: 5, titleFold: 'staff admin' })), true);
+  assert.equal(fresh(job({ tags: 4, titleFold: 'fresh graduate sales', fn: 'Fresh Graduate' })), false);
+  assert.equal(mt(job({ tags: 6, titleFold: 'odp bank' })), true);
+  assert.equal(mt(job({ tags: 4, titleFold: 'management trainee' })), false);
+  // Belum diperiksa: bidang dari sumber atau judul.
+  assert.equal(fresh(job({ fn: 'Fresh Graduate' })), true);
+  assert.equal(mt(job({ titleFold: 'management trainee 2026' })), true);
+  assert.equal(CATEGORY_BY_KEY.get('bumn').test(job({ coFold: 'pt bina karya (persero)' })), true);
 });

@@ -210,6 +210,7 @@ svg { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: currentColo
 .searchbar { position: relative; }
 .quick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: -12px; }
 .quick-label { font-size: 13.5px; font-weight: 600; color: var(--ink-2); margin-right: 4px; }
+.quick.kat { margin-top: -18px; }
 .quick .chip { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-2); height: 36px; }
 .quick .chip:hover { background: var(--card); }
 .quick .chip.on { background: var(--navy); box-shadow: none; }
@@ -254,7 +255,7 @@ svg { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: currentColo
 .stage img { position: absolute; left: 26%; bottom: 0; width: 48%; }
 
 /* Kartu kategori berwarna */
-.moods { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+.moods { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 .mood {
   position: relative; display: grid; align-content: start; justify-items: start; gap: 12px; height: 300px; padding: 24px 24px 0;
   border: 0; border-radius: 32px; overflow: hidden; cursor: pointer; text-align: left; color: #fff;
@@ -265,6 +266,8 @@ svg { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: currentColo
 .mood.green { background: var(--green); }
 .mood.pink { background: var(--pink); }
 .mood.yellow { background: var(--yellow); color: var(--navy); }
+.mood.purple { background: #7C69E6; }
+.mood.orange { background: var(--orange); }
 .mood-title { font-size: 25px; line-height: 1.12; font-weight: 700; letter-spacing: -.02em; max-width: 78%; }
 .mood-chip { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 999px; background: #fff; color: var(--navy); font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .mood-icon { position: absolute; top: 22px; right: 22px; width: 38px; height: 38px; }
@@ -272,6 +275,8 @@ svg { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: currentColo
 .mood.green .mood-icon { color: #fff; }
 .mood.pink .mood-icon { color: var(--yellow); }
 .mood.yellow .mood-icon { color: var(--navy); }
+.mood.purple .mood-icon { color: var(--yellow); }
+.mood.orange .mood-icon { color: var(--navy); }
 .mood img { position: absolute; right: 0; bottom: 0; height: 68%; width: auto; max-width: 70%; object-fit: contain; object-position: bottom; pointer-events: none; transition: transform .25s; transform-origin: bottom center; }
 .mood:hover img { transform: scale(1.03); }
 .mood-title, .mood-chip { position: relative; z-index: 1; }

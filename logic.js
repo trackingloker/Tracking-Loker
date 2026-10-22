@@ -73,8 +73,39 @@ const PORTAL_VIAS = new Set(['karirhub', 'disnakerja']);
 export const isCompanySite = (j) => !PORTAL_VIAS.has(j.via);
 
 export const EMPTY_FILTERS = Object.freeze({
-  q: '', jur: '', prov: '', city: '', fn: '', types: [], edu: '', gaji: '', waktu: '', src: '', sort: ''
+  q: '', jur: '', kat: '', prov: '', city: '', fn: '', types: [], edu: '', gaji: '', waktu: '', src: '', sort: ''
 });
+
+// ---------- Kategori ----------
+// Sama dengan karier.TAG_* di penarik data.
+export const TAG_FRESH = 1;
+export const TAG_MT = 2;
+export const TAG_CHECKED = 4;
+// Seperti menu Disnakerja (MT/ODP, BUMN, Instansi, Palm Oil, Mining, Oil & Gas, Manufaktur, Fresh Graduate, Intern),
+// tapi berlaku untuk lowongan dari semua sumber: dilihat dari bidang, industri, nama perusahaan, dan judul.
+const BUMN_NAMES = /(^|[^a-z])(pertamina|pln|telkom indonesia|bank mandiri|bank rakyat indonesia|bank negara indonesia|bank tabungan negara|bank syariah indonesia|pos indonesia|kereta api indonesia|angkasa pura|pelindo|pelabuhan indonesia|garuda indonesia|wijaya karya|waskita karya|adhi karya|hutama karya|pupuk indonesia|pupuk kaltim|pupuk kujang|petrokimia gresik|semen indonesia|aneka tambang|bukit asam|krakatau steel|jasa marga|perusahaan gas negara|bio ?farma|kimia farma|indofarma|asabri|taspen|jamkrindo|askrindo|asuransi jasa indonesia|sucofindo|surveyor indonesia|pindad|pal indonesia|len industri|industri kereta api|dahana|brantas abipraya|nindya karya|danareksa|peruri|perhutani|perkebunan nusantara|ptpn|bulog|pegadaian|permodalan nasional madani|damri|pelni|asdp|airnav|sarinah|biro klasifikasi indonesia|bina karya)(?![a-z])/;
+export const CATEGORIES = [
+  // MT dan fresh graduate memakai label hasil pemeriksaan deskripsi/kualifikasi saat penarikan (TAG_*). Lowongan yang
+  // belum diperiksa memakai bidang dari sumbernya atau judulnya.
+  { key: 'mt', label: 'MT / ODP', test: (j) => (j.tags & TAG_CHECKED ? !!(j.tags & TAG_MT) : j.fn === 'Management Trainee'
+    || /(^|[^a-z])(management trainee|odp|officer development|graduate (trainee|development) program)(?![a-z])/.test(j.titleFold)) },
+  { key: 'bumn', label: 'BUMN', test: (j) => j.indFold === 'bumn' || /\(persero\)|(^|[^a-z])(persero|perum|perumda|bumn)(?![a-z])/.test(j.coFold)
+    || BUMN_NAMES.test(j.coFold) },
+  { key: 'instansi', label: 'Instansi', test: (j) => j.indFold === 'instansi pemerintah'
+    || /^(dinas|kementerian|kementrian|badan|pemerintah|pemkab|pemkot|pemprov|sekretariat|kejaksaan|kepolisian|pengadilan|kantor wilayah|kanwil)(?![a-z])|(^|[^a-z])(rsud|puskesmas|universitas negeri|politeknik negeri)(?![a-z])/.test(j.coFold) },
+  { key: 'sawit', label: 'Palm Oil', test: (j) => /sawit|palm|plantation/.test(`${j.indFold} ${j.coFold} ${j.titleFold}`) },
+  { key: 'tambang', label: 'Mining', test: (j) => /tambang|mining/.test(j.indFold)
+    || /(^|[^a-z])(tambang|pertambangan|mining|mine|nikel|nickel|batubara|coal|smelter)(?![a-z])/.test(`${j.coFold} ${j.titleFold}`) },
+  { key: 'migas', label: 'Oil & Gas', test: (j) => /minyak|migas|oil|gas/.test(j.indFold)
+    || /(^|[^a-z])(migas|oil (and|&) gas|petroleum|lng|offshore|drilling|pertamina|refinery)(?![a-z])/.test(`${j.coFold} ${j.titleFold}`) },
+  { key: 'manufaktur', label: 'Manufaktur', test: (j) => /manufaktur|manufacturing/.test(j.indFold)
+    || j.fn === 'Manufaktur dan Produksi' || j.fn === 'Manajemen Pabrik'
+    || /(^|[^a-z])(operator produksi|pabrik|factory|manufacturing|manufaktur)(?![a-z])/.test(j.titleFold) },
+  { key: 'fresh', label: 'Fresh Graduate', test: (j) => (j.tags & TAG_CHECKED ? !!(j.tags & TAG_FRESH) : j.fn === 'Fresh Graduate'
+    || /(^|[^a-z])(fresh ?grad(uate)?s?|lulusan baru)(?![a-z])/.test(j.titleFold)) },
+  { key: 'magang', label: 'Intern / Magang', test: (j) => j.type === 'Magang' }
+];
+export const CATEGORY_BY_KEY = new Map(CATEGORIES.map((c) => [c.key, c]));
 
 // ---------- Jurusan ----------
 // Karirhub tidak mencantumkan jurusan secara rapi, jadi jurusan dicocokkan lewat bidang pekerjaan (fns)
@@ -413,11 +444,14 @@ export function decode(data) {
       posted: row[at('posted')] || 0,
       expires: row[at('expires')] || 0,
       first: row[at('first')] || 0,
-      via: pick(row, 'via')
+      via: pick(row, 'via'),
+      tags: at('tags') >= 0 ? +row[at('tags')] || 0 : 0
     };
     job.eduLevel = job.edu in EDU_LEVEL ? EDU_LEVEL[job.edu] : -1;
     job.pay = salaryMid(job);
     job.titleFold = fold(job.title);
+    job.coFold = fold(job.company);
+    job.indFold = fold(job.industry);
     job.hay = fold([job.title, job.company, cityLabel(job.city), job.province, job.fn, job.industry, job.platform].join(' '));
     return job;
   });
@@ -442,8 +476,10 @@ export function filterJobs(jobs, f, ref, skip = '') {
   const since = waktu && waktu.days ? ref - waktu.days * HARI : 0;
   const types = new Set(f.types || []);
   const jur = f.jur ? majorFilter(f.jur) : null;
+  const kat = CATEGORY_BY_KEY.get(f.kat);
   return jobs.filter((j) => {
     if (skip !== 'jur' && jur && !jur(j)) return false;
+    if (skip !== 'kat' && kat && !kat.test(j)) return false;
     if (skip !== 'prov' && f.prov && j.province !== f.prov) return false;
     if (skip !== 'city' && skip !== 'prov' && f.city && j.city !== f.city) return false;
     if (skip !== 'fn' && f.fn && j.fn !== f.fn) return false;
@@ -613,7 +649,7 @@ export function htmlToText(html) {
 
 // ---------- Filter <-> URL ----------
 
-const KEYS = ['q', 'jur', 'prov', 'city', 'fn', 'edu', 'gaji', 'waktu', 'src', 'sort'];
+const KEYS = ['q', 'jur', 'kat', 'prov', 'city', 'fn', 'edu', 'gaji', 'waktu', 'src', 'sort'];
 
 export function filtersFromQuery(search) {
   const p = new URLSearchParams(search);
@@ -633,7 +669,7 @@ export function filtersToQuery(f) {
 
 export function activeCount(f) {
   let n = 0;
-  for (const k of ['jur', 'prov', 'city', 'fn', 'edu', 'gaji', 'waktu', 'src']) if (f[k]) n += 1;
+  for (const k of ['jur', 'kat', 'prov', 'city', 'fn', 'edu', 'gaji', 'waktu', 'src']) if (f[k]) n += 1;
   return n + (f.types || []).length;
 }
 
