@@ -3,7 +3,7 @@
 import json
 import tempfile
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 from urllib.error import HTTPError
@@ -701,17 +701,19 @@ if __name__ == "__main__":
 
 
 DK_POST = """<html><head>
-<meta property="og:image" content="https://www.disnakerja.com/wp-content/uploads/2026/10/logo-sanbe-farma.png">
-<script type="application/ld+json">{"@graph":[{"@type":"Article","datePublished":"2026-10-17T08:00:00+07:00"}]}</script>
+<meta property="og:image" content="https://i0.wp.com/disnakerja.com/wp-content/uploads/2026/10/logo-sanbe-farma.png">
 </head><body><aside><h3>Fresh Graduate</h3><a href="https://www.disnakerja.com/pt-lain/">PT Lain</a></aside>
-<h1 class="entry-title">Lowongan Kerja PT Sanbe Farma</h1>
-<ul class="meta"><li><b>Lokasi</b> Jawa Barat</li><li><b>Tipe Pekerjaan</b> Full Time</li>
-<li><b>Pendidikan</b> SMA/K, Diploma III, Strata 1</li></ul>
-<div class="entry-content"><p>PT Sanbe Farma adalah perusahaan farmasi.</p>
-<h3>1. Recruitment Administration [URGENT]</h3><ul><li>Pendidikan minimal S1 Psikologi</li><li>Penempatan: Karawang</li></ul>
-<h3>Operator Produksi</h3><ul><li>Pendidikan minimal SMA/SMK sederajat</li><li>Bersedia dikontrak (kontrak 1 tahun)</li></ul>
-<h3>Cara Melamar</h3><p>Kirim CV ke email. Batas lamaran 30 Oktober 2026.</p></div>
-<h3>Info Lowongan Lainnya</h3><ul><li><a href="https://www.disnakerja.com/pt-x/">PT X</a></li></ul><footer>(c)</footer></body></html>"""
+<h1 class="entry-title">PT Sanbe Farma</h1>
+<ul class="meta"><li>Last Update: <time>October 17, 2026</time><time>October 17, 2026</time></li><li><b>Lokasi</b> Jawa Barat</li>
+<li><b>Tipe Pekerjaan</b> Full Time</li><li><b>Pendidikan</b> SMA/K, D3, S1</li></ul>
+<div class="entry-content"><p>Saat ini PT Sanbe Farma kembali membuka lowongan kerja terbaru pada bulan Oktober 2026.</p>
+<h3>Lowongan Kerja PT Sanbe Farma</h3><hr>
+<p><strong>1. Recruitment Administration [URGENT]</strong></p><ul><li>Pendidikan minimal S1 Psikologi</li><li>Penempatan: Karawang</li></ul>
+<p><strong>2. Operator Produksi</strong></p><p>Kualifikasi :</p><ul><li>Pendidikan minimal SMA/SMK sederajat</li>
+<li>Bersedia dikontrak (kontrak 1 tahun)</li></ul>
+<p><strong>Persyaratan Berkas:</strong></p><ul><li>CV terbaru</li></ul><p>Batas lamaran 30 Oktober 2026.</p>
+<p>INFO LOWONGAN LAINNYA, DAPAT DITEMUKAN DI: <a href="https://t.me/disnakerja">T.ME/DISNAKERJA</a></p>
+<p><strong>3. Bukan Posisi Setelah Info</strong></p></div><footer>(c)</footer></body></html>"""
 DK_LINK = "https://www.disnakerja.com/lowongan-kerja-pt-sanbe-farma/"
 
 
@@ -745,7 +747,7 @@ class TestDisnakerja(Base):
         self.assertEqual((admin["edu"], op["edu"]), ("Sarjana", "SMA atau Sederajat"))
         self.assertEqual((admin["type"], op["type"]), ("Full time", "Kontrak"))
         self.assertEqual(admin["expires"], int(datetime(2026, 10, 30, tzinfo=karier.WIB).timestamp()))
-        self.assertEqual(admin["posted"], int(datetime(2026, 10, 17, 8, 0, tzinfo=karier.WIB).timestamp()))
+        self.assertEqual(admin["posted"], int(datetime(2026, 10, 17, 1, 0, tzinfo=timezone.utc).timestamp()))  # dari API
         self.assertTrue(admin["logo"].endswith("logo-sanbe-farma.png"))
         self.assertNotIn("desc", admin)  # isi artikel tidak disalin
         opened = [u for u, _ in http.calls if "/wp-json/" not in u and "robots" not in u]
@@ -789,7 +791,33 @@ class TestDisnakerja(Base):
         self.assertTrue(report["api"].startswith("ok"))
         self.assertEqual(report["berhasil"], 1)
         self.assertEqual(report["contoh_artikel"][0]["posisi"], ["Recruitment Administration [URGENT]", "Operator Produksi"])
+        self.assertIn("Persyaratan Berkas:", report["contoh_artikel"][0]["baris_tebal_lain"])
         self.assertEqual(report["contoh_artikel"][0]["meta"]["lokasi"], "Jawa Barat")
+
+    def test_posisi_tebal_berurutan_dan_tanpa_nomor(self):
+        # Hop Lun: dua posisi berurutan lalu satu daftar kualifikasi bersama.
+        hop = """<h1>PT Hop Lun Indonesia</h1><ul><li>Lokasi Jawa Barat</li><li>Pendidikan SMA/K, D3, S1</li></ul>
+        <h3>Lowongan Kerja PT Hop Lun Indonesia</h3><hr><p><strong>1. SUPERVISOR SEWING</strong></p>
+        <p><strong>2. QUALITY ASSURANCE</strong></p><p>Kualifikasi :</p><ul>
+        <li>Pendidikan minimal SMP/Sederajat untuk Supervisor Sewing.</li><li>Pendidikan minimal D3/S1 untuk Quality Assurance.</li>
+        <li>Pengalaman minimal 1 tahun pada posisi yang sama.</li></ul><p><strong>Persyaratan Berkas:</strong></p>"""
+        jobs, _ = disnakerja.parse_post(hop, "https://www.disnakerja.com/lowongan-pt-hop-lun-indonesia/", REFS, NOW, 1)
+        self.assertEqual([(j["title"], j["edu"], j["province"]) for j in jobs],
+                         [("SUPERVISOR SEWING", "SMP atau Sederajat", "Jawa Barat"), ("QUALITY ASSURANCE", "Diploma", "Jawa Barat")])
+        # BSN: satu program tanpa nomor, label "Tanggung Jawab:" dilewati.
+        bsn = """<h1>PT Bank Syariah Nasional (BSN)</h1><p>BSN membuka program.</p>
+        <p><strong>Frontliner (Customer Service &amp; Teller)</strong></p><p><strong>Tanggung Jawab:</strong></p><ul><li>Melayani nasabah</li></ul>
+        <p>Kualifikasi:</p><ul><li>Pendidikan minimal Diploma (D3) dari jurusan yang relevan</li></ul>
+        <p><strong>PT Bank Syariah Nasional (BSN)</strong></p>"""
+        jobs, _ = disnakerja.parse_post(bsn, "https://www.disnakerja.com/pt-bank-syariah-nasional-bsn/", REFS, NOW, 1)
+        self.assertEqual([(j["title"], j["edu"]) for j in jobs], [("Frontliner (Customer Service & Teller)", "Diploma")])
+        # Tanggal "Last Update" berbahasa Inggris bila API tidak tersedia.
+        self.assertEqual(disnakerja._date_text("October 22, 2026October 22, 2026", NOW),
+                         int(datetime(2026, 10, 22, tzinfo=karier.WIB).timestamp()))
+        # Lowongan yang diterbitkan ulang di artikel baru: yang terbaru saja.
+        a = {"company": "PT A", "title": "Sales", "posted": 1, "id": "x1"}
+        b = {"company": "PT A", "title": "SALES", "posted": 2, "id": "x2"}
+        self.assertEqual([j["id"] for j in disnakerja.dedupe([a, b])], ["x2"])
 
     def test_penanda_halaman(self):
         self.assertTrue(disnakerja.is_post("https://www.disnakerja.com/pt-uniflex-kemasindah/"))

@@ -141,7 +141,7 @@ def _region(page: str) -> str:
     ends = [m.start() for m in re.finditer(
         r'<footer\b|id=["\']comments|class=["\'][^"\']*(related|sharedaddy|post-tags|jp-relatedposts)|'
         r'>\s*(Info Lowongan Lainnya|Lowongan Lainnya|Lowongan Terkait|Lowongan Terbaru|Artikel Terbaru|Trending|'
-        r'Lowongan Berdasarkan|Baca Juga)\s*<', body, re.I)]
+        r'Lowongan Berdasarkan|Baca Juga)\b', body, re.I)]
     return body[:min(ends)] if ends else body
 
 
@@ -229,6 +229,73 @@ def logo_of(page: str) -> str:
     return url if "/wp-content/uploads/" in url and not re.search(r"default|placeholder|banner|cover", url, re.I) else ""
 
 
+# Baris tebal yang berupa label, bukan nama posisi ("Kualifikasi", "Persyaratan Berkas", "INFO").
+LABEL_WORDS = re.compile(
+    r"^(kualifikasi|persyaratan|syarat|tanggung ?jawab|deskripsi|job ?desc|uraian|requirement|responsib|qualification|benefit|"
+    r"fasilitas|cara|pendaftaran|catatan|note|info|penempatan|lokasi|dokumen|berkas|tahapan|jadwal|gaji|keterangan|"
+    r"perhatian|ketentuan|kriteria|lowongan|tentang|profil|batas|periode|kirim|lamar|apply|email|link|website|alamat|"
+    r"tunjangan|keuntungan|penting|disclaimer|update|kontak|hubungi|penutup|kesimpulan|ayo|yuk|segera)\b", re.I)
+BOLD_LINE = re.compile(
+    r"<(p|h[2-5]|div)\b[^>]*>\s*(?:&nbsp;|<br\s*/?>|\s)*<(strong|b)\b[^>]*>(.*?)</\2>\s*(?:&nbsp;|<br\s*/?>|\s|:)*</\1>",
+    re.S | re.I)
+HEADING = re.compile(r"<(h[2-5])\b[^>]*>(.*?)</\1>", re.S | re.I)
+NUMBERED = re.compile(r"^\d{1,2}\s*[.)]\s*\S")
+
+
+def find_positions(region: str, company: str) -> list[tuple[int, int, str]]:
+    """Nama posisi di artikel Disnakerja: baris tebal sendiri (biasanya bernomor, "1. Team Leader") atau subjudul.
+
+    Label seperti "Kualifikasi:", judul "Lowongan Kerja PT X", dan nama perusahaan dilewati. Bila ada yang bernomor,
+    hanya yang bernomor yang dipakai.
+    """
+    found = []
+    for m in list(BOLD_LINE.finditer(region)) + list(HEADING.finditer(region)):
+        raw = karier.clean(re.sub(r"<[^>]+>", " ", m.group(m.lastindex)))
+        found.append((m.start(), m.end(), raw))
+    found.sort()
+    company_key = re.sub(r"[^a-z0-9]+", " ", company.lower()).strip()
+    out, seen = [], set()
+    for start, end, raw in found:
+        title = _clean_title(raw)
+        key = re.sub(r"[^a-z0-9]+", " ", title.lower()).strip()
+        if (not title or len(title) < 3 or len(title) > 90 or len(title.split()) > 12 or ":" in raw.rstrip(" :")
+                or raw.rstrip().endswith(":") or LABEL_WORDS.match(title) or NOT_POSITION.match(title)
+                or key in (company_key, re.sub(r"^(pt|cv) ", "", company_key)) or company_key and company_key in key
+                or "disnakerja" in key or re.search(r"https?://|@", title) or key in seen):
+            continue
+        if any(s < start < e for s, e, _ in out):
+            continue  # baris tebal di dalam subjudul yang sudah diambil
+        seen.add(key)
+        out.append((start, end, raw))
+    if any(NUMBERED.match(raw) for _, _, raw in out):
+        out = [x for x in out if NUMBERED.match(x[2])]
+    return [(s, e, _clean_title(raw)) for s, e, raw in out]
+
+
+def _date_text(text: str, now: datetime) -> int:
+    """Tanggal dari teks seperti "October 22, 2026" atau "22 Oktober 2026"."""
+    m = re.search(r"([A-Z][a-z]+) (\d{1,2}), (\d{4})", text or "")
+    if m:
+        try:
+            return int(datetime.strptime(" ".join(m.groups()), "%B %d %Y").replace(tzinfo=karier.WIB).timestamp())
+        except ValueError:
+            pass
+    return karier.epoch(text, now) if text else 0
+
+
+def edu_for(section: str, title: str, others: list[str]) -> str:
+    """Jenjang pendidikan untuk satu posisi. Baris "Pendidikan minimal D3/S1 untuk Quality Assurance" dipakai untuk
+    posisi yang disebut namanya; baris untuk posisi lain dilewati."""
+    lines = [x for x in section.lower().split("\n") if EDU_LINE.search(x)]
+    me = title.lower()
+    own = [x for x in lines if me in x]
+    if own:
+        lines = own
+    else:
+        lines = [x for x in lines if not any(o.lower() in x for o in others if o.lower() != me)]
+    return edu_level("\n".join(lines)) if lines else ""
+
+
 def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int = 0) -> tuple[list[dict], dict]:
     """Lowongan per posisi dari satu artikel. Mengembalikan (lowongan, info) untuk laporan cek."""
     company = company_name(page)
@@ -240,13 +307,13 @@ def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int
         "tipe": label_value(lines, r"tipe pekerjaan|jenis pekerjaan|tipe|status( kerja| pekerjaan)?|job type"),
         "update": label_value(lines, r"last update|terakhir diperbarui|diperbarui|update"),
     }
-    posted = published(page) or posted_hint or (karier.epoch(meta["update"], now) if meta["update"] else 0) \
-        or int(now.timestamp())
-    heads = [(m.start(), m.end(), _clean_title(m.group(1)))
-             for m in re.finditer(r"<h3\b[^>]*>(.*?)</h3>", region, re.S | re.I)]
-    positions = [(s, e, t) for s, e, t in heads if 2 < len(t) <= 120 and not NOT_POSITION.match(t)]
-    info = {"perusahaan": company, "posisi": [t for _, _, t in positions], "h3_lain": [t for _, _, t in heads if not
-            any(t == p for _, _, p in positions)][:8], "meta": meta, "tanggal": posted}
+    # Tanggal terbit dari API WordPress paling tepat; "Last Update" di halaman hanya cadangan.
+    posted = posted_hint or published(page) or _date_text(meta["update"], now) or int(now.timestamp())
+    positions = find_positions(region, company)
+    bold = [karier.clean(re.sub(r"<[^>]+>", " ", m.group(3))) for m in BOLD_LINE.finditer(region)]
+    info = {"perusahaan": company, "posisi": [t for _, _, t in positions],
+            "baris_tebal_lain": [b for b in bold if _clean_title(b) not in {t for _, _, t in positions}][:10],
+            "meta": meta, "tanggal": posted}
     if not company or not positions:
         return [], info
     full_text = "\n".join(lines)
@@ -258,9 +325,13 @@ def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int
     logo = logo_of(page)
     slug = urlsplit(link).path.strip("/").split("/")[-1][-60:]
     jobs = []
+    titles = [t for _, _, t in positions]
+    sections = [_text(region[end:(positions[i + 1][0] if i + 1 < len(positions) else len(region))])
+                for i, (_, end, _) in enumerate(positions)]
     for i, (start, end, title) in enumerate(positions):
-        stop = positions[i + 1][0] if i + 1 < len(positions) else len(region)
-        section = _text(region[end:stop])
+        # Posisi berurutan tanpa isi ("1. Supervisor Sewing", "2. Quality Assurance", lalu satu daftar kualifikasi):
+        # pakai kualifikasi bersama di bawahnya.
+        section = next((x for x in sections[i:] if x.strip()), "")
         sec_lines = section.split("\n")
         where = None
         for line in sec_lines:
@@ -287,7 +358,7 @@ def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int
             "function": "",
             "industry": "",
             "type": work_type(title + "\n" + section) or karier.norm_type(meta["tipe"]) or work_type(meta["tipe"]),
-            "edu": edu_level(section) or edu_level(meta["pendidikan"]),
+            "edu": edu_for(section, title, titles) or edu_level(meta["pendidikan"]),
             "smin": 0,
             "smax": 0,
             "posted": posted,
@@ -296,6 +367,15 @@ def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int
             "link": link,
         })
     return jobs, info
+
+
+def dedupe(jobs: list[dict]) -> list[dict]:
+    """Disnakerja kadang menerbitkan ulang lowongan yang sama di artikel baru: simpan yang terbaru saja."""
+    best: dict[tuple, dict] = {}
+    for j in sorted(jobs, key=lambda x: -x["posted"]):
+        key = (re.sub(r"[^a-z0-9]+", " ", j["company"].lower()).strip(), re.sub(r"[^a-z0-9]+", " ", j["title"].lower()).strip())
+        best.setdefault(key, j)
+    return list(best.values())
 
 
 # ---------------------------------------------------------------- penarikan
@@ -393,10 +473,7 @@ def fetch(refs: dict, prev: dict, now: datetime | None = None, state: dict | Non
             state[p["link"]] = {"m": p["modified"] or int(now.timestamp()), "p": info["tanggal"]}
             jobs += found
     jobs = [j for j in jobs if j["posted"] >= cutoff and (not j["expires"] or j["expires"] >= now.timestamp())]
-    unique: dict[str, dict] = {}
-    for j in jobs:
-        unique.setdefault(j["id"], j)  # satu posisi sekali saja
-    jobs = list(unique.values())
+    jobs = dedupe(jobs)
     # Catatan artikel yang sudah jauh di luar jendela dibuang supaya berkasnya tidak terus membesar.
     state = {k: v for k, v in state.items() if v.get("p", 0) >= cutoff - 14 * 86400}
     summary = {"cara": method, "artikel": len(posts), "dibuka": opened, "berisi_lowongan": parsed, "utuh": complete}
