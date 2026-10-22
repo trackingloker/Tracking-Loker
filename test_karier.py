@@ -811,6 +811,12 @@ class TestDisnakerja(Base):
         <p><strong>PT Bank Syariah Nasional (BSN)</strong></p>"""
         jobs, _ = disnakerja.parse_post(bsn, "https://www.disnakerja.com/pt-bank-syariah-nasional-bsn/", REFS, NOW, 1)
         self.assertEqual([(j["title"], j["edu"]) for j in jobs], [("Frontliner (Customer Service & Teller)", "Diploma")])
+        # "Baca Juga" dan tautan "Lowongan Terbaru" di tengah artikel tidak memotong daftar posisi.
+        noisy = hop.replace('<h3>Lowongan Kerja', '<p><strong>Baca Juga:</strong> <a href="/x/">Lowongan Terbaru BUMN</a></p>'
+                            '<div class="widget"><span>Trending</span></div><h3>Lowongan Kerja')
+        jobs, info = disnakerja.parse_post(noisy, "https://www.disnakerja.com/lowongan-pt-hop-lun-indonesia/", REFS, NOW, 1)
+        self.assertEqual([j["title"] for j in jobs], ["SUPERVISOR SEWING", "QUALITY ASSURANCE"])
+        self.assertGreater(info["tebal_di_artikel"], 0)
         # Tanggal "Last Update" berbahasa Inggris bila API tidak tersedia.
         self.assertEqual(disnakerja._date_text("October 22, 2026October 22, 2026", NOW),
                          int(datetime(2026, 10, 22, tzinfo=karier.WIB).timestamp()))

@@ -134,15 +134,22 @@ def post_links(page: str) -> list[str]:
 
 # ---------------------------------------------------------------- isi artikel
 
+END_MARK = re.compile(
+    r'<footer\b|id=["\']comments|class=["\'][^"\']*\b(related-posts|sharedaddy|post-tags|jp-relatedposts)\b|'
+    r'>\s*(?:<(?:strong|b)>\s*)?(Info Lowongan Lainnya|Lowongan Lainnya|Lowongan Terkait|Artikel Terbaru|Lowongan Berdasarkan)'
+    r'\s*(?:</(?:strong|b)>)?\s*[:,]?\s*(?:<|dapat)', re.I)
+
+
 def _region(page: str) -> str:
-    """Bagian artikel: dari judul H1 sampai bagian "lowongan lainnya"/komentar/footer."""
+    """Bagian artikel: dari judul H1 sampai "Info Lowongan Lainnya", daftar artikel terkait, komentar, atau footer.
+
+    Penanda akhir harus berdiri sendiri sebagai isi elemen, supaya tautan "Lowongan Terbaru" di menu atau
+    "Baca Juga" di tengah artikel tidak memotong daftar posisi.
+    """
     start = re.search(r"<h1\b", page, re.I)
     body = page[start.start():] if start else page
-    ends = [m.start() for m in re.finditer(
-        r'<footer\b|id=["\']comments|class=["\'][^"\']*(related|sharedaddy|post-tags|jp-relatedposts)|'
-        r'>\s*(Info Lowongan Lainnya|Lowongan Lainnya|Lowongan Terkait|Lowongan Terbaru|Artikel Terbaru|Trending|'
-        r'Lowongan Berdasarkan|Baca Juga)\b', body, re.I)]
-    return body[:min(ends)] if ends else body
+    end = END_MARK.search(body)
+    return body[:end.start()] if end else body
 
 
 def _text(markup: str) -> str:
@@ -235,8 +242,11 @@ LABEL_WORDS = re.compile(
     r"fasilitas|cara|pendaftaran|catatan|note|info|penempatan|lokasi|dokumen|berkas|tahapan|jadwal|gaji|keterangan|"
     r"perhatian|ketentuan|kriteria|lowongan|tentang|profil|batas|periode|kirim|lamar|apply|email|link|website|alamat|"
     r"tunjangan|keuntungan|penting|disclaimer|update|kontak|hubungi|penutup|kesimpulan|ayo|yuk|segera)\b", re.I)
+# Isi tebal tidak boleh melewati batas paragraf, supaya "<p><strong>Baca Juga:</strong> <a>..</a></p>" tidak tersambung
+# dengan baris tebal berikutnya menjadi satu.
 BOLD_LINE = re.compile(
-    r"<(p|h[2-5]|div)\b[^>]*>\s*(?:&nbsp;|<br\s*/?>|\s)*<(strong|b)\b[^>]*>(.*?)</\2>\s*(?:&nbsp;|<br\s*/?>|\s|:)*</\1>",
+    r"<(p|h[2-5]|div)\b[^>]*>\s*(?:&nbsp;|<br\s*/?>|\s)*<(strong|b)\b[^>]*>((?:(?!</?(?:p|div|h\d|li|ul|ol|strong|b)\b).)*?)"
+    r"</\2>\s*(?:&nbsp;|<br\s*/?>|\s|:)*</\1>",
     re.S | re.I)
 HEADING = re.compile(r"<(h[2-5])\b[^>]*>(.*?)</\1>", re.S | re.I)
 NUMBERED = re.compile(r"^\d{1,2}\s*[.)]\s*\S")
@@ -270,6 +280,11 @@ def find_positions(region: str, company: str) -> list[tuple[int, int, str]]:
     if any(NUMBERED.match(raw) for _, _, raw in out):
         out = [x for x in out if NUMBERED.match(x[2])]
     return [(s, e, _clean_title(raw)) for s, e, raw in out]
+
+
+def _bold_raw(region: str, pos: tuple[int, int, str]) -> str:
+    """Teks asli (dengan nomornya) dari baris tebal di posisi tertentu."""
+    return karier.clean(re.sub(r"<[^>]+>", " ", region[pos[0]:pos[1]]))
 
 
 def _date_text(text: str, now: datetime) -> int:
@@ -310,10 +325,22 @@ def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int
     # Tanggal terbit dari API WordPress paling tepat; "Last Update" di halaman hanya cadangan.
     posted = posted_hint or published(page) or _date_text(meta["update"], now) or int(now.timestamp())
     positions = find_positions(region, company)
+    if not positions:
+        # Cadangan: seluruh halaman dari H1 sampai footer, hanya baris tebal bernomor ("1. Team Leader").
+        start = re.search(r"<h1\b", page, re.I)
+        whole = page[start.start() if start else 0:]
+        foot = re.search(r"<footer\b", whole, re.I)
+        region = whole[:foot.start()] if foot else whole
+        positions = [x for x in find_positions(region, company) if x[2] and NUMBERED.match(_bold_raw(region, x))]
     bold = [karier.clean(re.sub(r"<[^>]+>", " ", m.group(3))) for m in BOLD_LINE.finditer(region)]
     info = {"perusahaan": company, "posisi": [t for _, _, t in positions],
             "baris_tebal_lain": [b for b in bold if _clean_title(b) not in {t for _, _, t in positions}][:10],
-            "meta": meta, "tanggal": posted}
+            "meta": meta, "tanggal": posted,
+            # Untuk menelusuri bila posisi tidak terbaca: ukuran bagian artikel dan jumlah teks tebal.
+            "panjang_artikel": len(region), "tebal_di_halaman": len(re.findall(r"<(strong|b)\b", page, re.I)),
+            "tebal_di_artikel": len(re.findall(r"<(strong|b)\b", region, re.I)),
+            "contoh_tebal_halaman": [m.group(0)[:140] for m in re.finditer(r"<(?:p|h\d|li|div)\b[^>]*>\s*<(?:strong|b)\b[^>]*>[^<]{0,60}",
+                                                                            page, re.I)][:6]}
     if not company or not positions:
         return [], info
     full_text = "\n".join(lines)
