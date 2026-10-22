@@ -817,6 +817,13 @@ class TestDisnakerja(Base):
         jobs, info = disnakerja.parse_post(noisy, "https://www.disnakerja.com/lowongan-pt-hop-lun-indonesia/", REFS, NOW, 1)
         self.assertEqual([j["title"] for j in jobs], ["SUPERVISOR SEWING", "QUALITY ASSURANCE"])
         self.assertGreater(info["tebal_di_artikel"], 0)
+        # Variasi HTML: </p> dirampingkan, rincian setelah <br>, span di dalam tebal, tebal di tengah kalimat.
+        variants = ('<h1>PT Bina Karya (Persero)</h1><p style="x"><strong><span style="y">1. Team Leader</span></strong>\n<p>'
+                    '<strong>2. Ahli Geoteknik</strong>&nbsp;<br />- Pendidikan: S1 Sipil/Geologi.</p>'
+                    '<p>Kami <strong>sangat</strong> membutuhkan.</p><p><b>3. Pengemudi</b></p>')
+        jobs, _ = disnakerja.parse_post(variants, "https://www.disnakerja.com/lowongan-kerja-pt-bina-karya-persero/", REFS, NOW, 1)
+        self.assertEqual([(j["title"], j["edu"]) for j in jobs][:3],
+                         [("Team Leader", "Sarjana"), ("Ahli Geoteknik", "Sarjana"), ("Pengemudi", "")])
         # Tanggal "Last Update" berbahasa Inggris bila API tidak tersedia.
         self.assertEqual(disnakerja._date_text("October 22, 2026October 22, 2026", NOW),
                          int(datetime(2026, 10, 22, tzinfo=karier.WIB).timestamp()))

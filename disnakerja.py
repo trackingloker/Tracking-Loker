@@ -242,12 +242,30 @@ LABEL_WORDS = re.compile(
     r"fasilitas|cara|pendaftaran|catatan|note|info|penempatan|lokasi|dokumen|berkas|tahapan|jadwal|gaji|keterangan|"
     r"perhatian|ketentuan|kriteria|lowongan|tentang|profil|batas|periode|kirim|lamar|apply|email|link|website|alamat|"
     r"tunjangan|keuntungan|penting|disclaimer|update|kontak|hubungi|penutup|kesimpulan|ayo|yuk|segera)\b", re.I)
-# Isi tebal tidak boleh melewati batas paragraf, supaya "<p><strong>Baca Juga:</strong> <a>..</a></p>" tidak tersambung
-# dengan baris tebal berikutnya menjadi satu.
-BOLD_LINE = re.compile(
-    r"<(p|h[2-5]|div)\b[^>]*>\s*(?:&nbsp;|<br\s*/?>|\s)*<(strong|b)\b[^>]*>((?:(?!</?(?:p|div|h\d|li|ul|ol|strong|b)\b).)*?)"
-    r"</\2>\s*(?:&nbsp;|<br\s*/?>|\s|:)*</\1>",
-    re.S | re.I)
+# Paragraf atau subjudul. Penutup </p> boleh tidak ada (HTML yang dirampingkan): paragraf berakhir di blok berikutnya.
+PARA = re.compile(r"<(p|h[2-5])\b[^>]*>(.*?)(?=</\1>|<p\b|<h[1-6]\b|<ul\b|<ol\b|<div\b|<hr\b|<table\b|</div>)", re.S | re.I)
+LEAD_BOLD = re.compile(r"^(?:\s|&nbsp;|&#160;|<br\s*/?>|<span\b[^>]*>)*<(strong|b)\b[^>]*>(.*?)</\1>", re.S | re.I)
+
+
+def bold_lines(region: str) -> list[tuple[int, int, str]]:
+    """Baris yang diawali teks tebal dan tebalnya berdiri sendiri: "<p><strong>1. Team Leader</strong></p>", juga bila
+    disusul <br> dan rinciannya di paragraf yang sama. Tebal di tengah kalimat tidak dihitung."""
+    out = []
+    for m in PARA.finditer(region):
+        inner = m.group(2)
+        lead = LEAD_BOLD.match(inner)
+        if not lead:
+            continue
+        rest = inner[lead.end():]
+        rest_text = karier.clean(re.sub(r"<[^>]+>", " ", rest)).strip(" :\u00a0")
+        if rest_text and not re.match(r"^(?:\s|&nbsp;|</span>|:)*<br\b", rest, re.I):
+            continue
+        raw = karier.clean(re.sub(r"<[^>]+>", " ", lead.group(2)))
+        if raw:
+            out.append((m.start(), m.start(2) + lead.end(), raw))
+    return out
+
+
 HEADING = re.compile(r"<(h[2-5])\b[^>]*>(.*?)</\1>", re.S | re.I)
 NUMBERED = re.compile(r"^\d{1,2}\s*[.)]\s*\S")
 
@@ -258,10 +276,9 @@ def find_positions(region: str, company: str) -> list[tuple[int, int, str]]:
     Label seperti "Kualifikasi:", judul "Lowongan Kerja PT X", dan nama perusahaan dilewati. Bila ada yang bernomor,
     hanya yang bernomor yang dipakai.
     """
-    found = []
-    for m in list(BOLD_LINE.finditer(region)) + list(HEADING.finditer(region)):
-        raw = karier.clean(re.sub(r"<[^>]+>", " ", m.group(m.lastindex)))
-        found.append((m.start(), m.end(), raw))
+    found = bold_lines(region)
+    for m in HEADING.finditer(region):
+        found.append((m.start(), m.end(), karier.clean(re.sub(r"<[^>]+>", " ", m.group(2)))))
     found.sort()
     company_key = re.sub(r"[^a-z0-9]+", " ", company.lower()).strip()
     out, seen = [], set()
@@ -332,15 +349,15 @@ def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int
         foot = re.search(r"<footer\b", whole, re.I)
         region = whole[:foot.start()] if foot else whole
         positions = [x for x in find_positions(region, company) if x[2] and NUMBERED.match(_bold_raw(region, x))]
-    bold = [karier.clean(re.sub(r"<[^>]+>", " ", m.group(3))) for m in BOLD_LINE.finditer(region)]
+    bold = [raw for _, _, raw in bold_lines(region)]
     info = {"perusahaan": company, "posisi": [t for _, _, t in positions],
             "baris_tebal_lain": [b for b in bold if _clean_title(b) not in {t for _, _, t in positions}][:10],
             "meta": meta, "tanggal": posted,
             # Untuk menelusuri bila posisi tidak terbaca: ukuran bagian artikel dan jumlah teks tebal.
             "panjang_artikel": len(region), "tebal_di_halaman": len(re.findall(r"<(strong|b)\b", page, re.I)),
             "tebal_di_artikel": len(re.findall(r"<(strong|b)\b", region, re.I)),
-            "contoh_tebal_halaman": [m.group(0)[:140] for m in re.finditer(r"<(?:p|h\d|li|div)\b[^>]*>\s*<(?:strong|b)\b[^>]*>[^<]{0,60}",
-                                                                            page, re.I)][:6]}
+            "contoh_tebal_halaman": [m.group(0) for m in re.finditer(r"<(?:p|h\d|li|div)\b[^>]*>\s*<(?:strong|b)\b[\s\S]{0,160}",
+                                                                      page, re.I)][:4]}
     if not company or not positions:
         return [], info
     full_text = "\n".join(lines)
