@@ -380,9 +380,10 @@ def fill_locations(jobs: list[dict], prev: dict, checked: set[str], refs: dict, 
 
 
 DETAIL_SEEN: dict[str, dict] = {}  # detail Karirhub yang sudah dibuka di penarikan ini
-KH_TAG_CAP = 2000          # deskripsi Karirhub yang diperiksa per penarikan (label fresh graduate / MT)
-KH_TAG_BUDGET_SEC = 6 * 60
-KH_TAG_WORKERS = 6
+KH_TAG_CAP = 8000          # deskripsi Karirhub yang diperiksa per penarikan (label fresh graduate / MT)
+KH_TAG_BUDGET_SEC = 20 * 60   # paling lama untuk memeriksa deskripsi dalam satu penarikan
+RUN_DEADLINE_SEC = 38 * 60    # pemeriksaan berhenti bila penarikan sudah berjalan selama ini (batas workflow 50 menit)
+KH_TAG_WORKERS = 8
 
 
 def karirhub_tags(job: dict, detail: dict) -> int:
@@ -402,7 +403,7 @@ def karirhub_tags(job: dict, detail: dict) -> int:
     return tags
 
 
-def tag_karirhub(jobs: list[dict], prev: dict) -> None:
+def tag_karirhub(jobs: list[dict], prev: dict, run_started: float | None = None) -> None:
     """Periksa deskripsi lowongan Karirhub yang belum pernah diperiksa (terbaru dulu); yang lain memakai hasil kemarin."""
     from concurrent.futures import ThreadPoolExecutor
 
@@ -419,11 +420,15 @@ def tag_karirhub(jobs: list[dict], prev: dict) -> None:
         return
     todo.sort(key=lambda j: -j["posted"])
     started = time.monotonic()
+    # Waktu tersisa dari penarikan ini dipakai sebanyak mungkin, tanpa melewati batas waktu workflow.
+    budget = KH_TAG_BUDGET_SEC
+    if run_started is not None:
+        budget = max(0.0, min(budget, RUN_DEADLINE_SEC - (started - run_started)))
 
     def one(job):
         if job["id"] in DETAIL_SEEN:
             return job, DETAIL_SEEN[job["id"]]
-        if time.monotonic() - started > KH_TAG_BUDGET_SEC:
+        if time.monotonic() - started > budget:
             return job, None
         try:
             return job, (fetch(f"{LISTING}/{job['id']}") or {}).get("data") or {}
@@ -980,7 +985,7 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
 
     DETAIL_SEEN.clear()
     checked = fill_locations(fresh, prev, checked, refs, started)
-    tag_karirhub(fresh, prev)
+    tag_karirhub(fresh, prev, started)
 
     jobs, added, closed = merge(prev, fresh, complete, day_number(now), now_ts)
     # Lowongan yang sama perusahaannya (termasuk dari Karirhub) memakai logo resmi yang sudah dicek bisa tampil.
@@ -1007,7 +1012,10 @@ def run(out_dir: Path, max_pages: int = MAX_PAGES, now: datetime | None = None) 
             details[j["id"]] = karier.tidy_desc(text)
         # Label fresh graduate / MT dari deskripsi situs perusahaan (Disnakerja sudah diberi label saat dibaca).
         if j["via"] != disnakerja.VIA:
-            j["tags"] = karier.job_tags(j["title"], details.get(j["id"]) or "", j.get("function", ""))
+            text = details.get(j["id"]) or ""
+            j["tags"] = karier.job_tags(j["title"], text, j.get("function", ""))
+            if not (j["city"] or j["province"]) and karier.NATIONWIDE.search(text):
+                j["tags"] |= karier.TAG_NATIONAL  # mis. BCA "Lokasi Penempatan: Seluruh Indonesia"
     write_json(jobs_path, encode(jobs, meta))
     write_json(links_path, {j["id"]: j["link"] for j in jobs if j.get("link")})
     write_details(out_dir, details, now)

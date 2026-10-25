@@ -81,6 +81,14 @@ export const EMPTY_FILTERS = Object.freeze({
 export const TAG_FRESH = 1;
 export const TAG_MT = 2;
 export const TAG_CHECKED = 4;
+export const TAG_NATIONAL = 8;
+
+/** Lokasi untuk ditampilkan: kota, atau provinsi, atau "Seluruh Indonesia" bila penempatannya nasional. */
+export function placeLabel(job, full = false) {
+  const city = cityLabel(job.city);
+  const text = full ? [city, job.province].filter(Boolean).join(', ') : city || job.province;
+  return text || (job.tags & TAG_NATIONAL ? 'Seluruh Indonesia' : 'Indonesia');
+}
 // Seperti menu Disnakerja (MT/ODP, BUMN, Instansi, Palm Oil, Mining, Oil & Gas, Manufaktur, Fresh Graduate, Intern),
 // tapi berlaku untuk lowongan dari semua sumber: dilihat dari bidang, industri, nama perusahaan, dan judul.
 const BUMN_NAMES = /(^|[^a-z])(pertamina|pln|telkom indonesia|bank mandiri|bank rakyat indonesia|bank negara indonesia|bank tabungan negara|bank syariah indonesia|pos indonesia|kereta api indonesia|angkasa pura|pelindo|pelabuhan indonesia|garuda indonesia|wijaya karya|waskita karya|adhi karya|hutama karya|pupuk indonesia|pupuk kaltim|pupuk kujang|petrokimia gresik|semen indonesia|aneka tambang|bukit asam|krakatau steel|jasa marga|perusahaan gas negara|bio ?farma|kimia farma|indofarma|asabri|taspen|jamkrindo|askrindo|asuransi jasa indonesia|sucofindo|surveyor indonesia|pindad|pal indonesia|len industri|industri kereta api|dahana|brantas abipraya|nindya karya|danareksa|peruri|perhutani|perkebunan nusantara|ptpn|bulog|pegadaian|permodalan nasional madani|damri|pelni|asdp|airnav|sarinah|biro klasifikasi indonesia|bina karya)(?![a-z])/;

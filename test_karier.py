@@ -499,6 +499,22 @@ class TestHalamanDaftar(Base):
 
 
 class TestCek(Base):
+    def test_situs_aplikasi_api_lowongan_dicoba(self):
+        # Seperti career.astra.co.id: halaman kosong yang dimuat JavaScript, API lowongan ada di berkas JS-nya.
+        page = '<html><head><title>Astra Career</title><script src="/static/js/main.abc.chunk.js"></script></head><body></body></html>'
+        bundle = ('const B="https://careerservice.contoh.co.id/api/";'
+                  'axios.get(B+"api/v1/front-end/vacancy/list",{params:{page:1,keyword:q}});fetch("/static/logo.png")')
+        self.use({
+            "career.contoh.co.id/static/js/main": lambda u, b: (bundle, "text/javascript"),
+            "careerservice.contoh.co.id/api/api/v1/front-end/vacancy/list": lambda u, b: {"data": [{"VacancyName": "Admin"}]},
+            "career.contoh.co.id": lambda u, b: (page, "text/html"),
+        })
+        r = karier.check_company({"nama": "PT Contoh", "situs": ["https://career.contoh.co.id/"]}, REFS)
+        entry = r["situs"][0]
+        self.assertTrue(any("vacancy/list" in k for k in entry["kode_api"]))
+        hit = next(x for x in entry["coba_api"] if x.get("status") == 200)
+        self.assertIn("VacancyName", hit["awal"])
+
     def test_platform_terdeteksi_dan_dicoba(self):
         page = ('<html><head><title>Karir</title><script src="/static/app.js"></script></head>'
                 '<body><a href="https://apply.workable.com/contoh/">Lihat lowongan</a></body></html>')
@@ -817,6 +833,9 @@ class TestDisnakerja(Base):
         <p><strong>PT Bank Syariah Nasional (BSN)</strong></p>"""
         jobs, _ = disnakerja.parse_post(bsn, "https://www.disnakerja.com/pt-bank-syariah-nasional-bsn/", REFS, NOW, 1)
         self.assertEqual([(j["title"], j["edu"]) for j in jobs], [("Frontliner (Customer Service & Teller)", "Diploma")])
+        national = bsn.replace("</h1>", "</h1><ul><li>Lokasi Seluruh Indonesia</li></ul>")
+        jobs, _ = disnakerja.parse_post(national, "https://www.disnakerja.com/pt-bank-syariah-nasional-bsn/", REFS, NOW, 1)
+        self.assertTrue(jobs[0]["tags"] & karier.TAG_NATIONAL)
         # "Baca Juga" dan tautan "Lowongan Terbaru" di tengah artikel tidak memotong daftar posisi.
         noisy = hop.replace('<h3>Lowongan Kerja', '<p><strong>Baca Juga:</strong> <a href="/x/">Lowongan Terbaru BUMN</a></p>'
                             '<div class="widget"><span>Trending</span></div><h3>Lowongan Kerja')

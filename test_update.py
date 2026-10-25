@@ -353,6 +353,11 @@ class TestLabel(Base):
         self.assertEqual(t("SMT Operator", ""), cek)                                    # "smt" bukan MT
         self.assertEqual(t("Kasir", "", "Fresh Graduate"), cek | fresh)                  # bidang di sumber
         self.assertEqual(t("Kasir", "Minimal 2 tahun pengalaman", "", "Fresh Graduate"), cek)  # kategori kalah oleh syarat
+        self.assertEqual(t("Finance Track", "", "", "MT / ODP"), cek | mt)
+        self.assertEqual(t("United Tractors Internship Program", "", "", "MT / ODP"), cek)  # magang bukan MT
+        self.assertTrue(karier.NATIONWIDE.search("Lokasi Penempatan: Seluruh Indonesia"))
+        self.assertTrue(karier.NATIONWIDE.search("Bersedia ditempatkan di seluruh wilayah operasional perusahaan"))
+        self.assertFalse(karier.NATIONWIDE.search("Lokasi: Jakarta Selatan"))
 
     def test_karirhub_diperiksa_sekali(self):
         rows = [vacancy(1, title="Staff Admin"), vacancy(2, title="Staff Gudang"), vacancy(3, title="Management Trainee"),

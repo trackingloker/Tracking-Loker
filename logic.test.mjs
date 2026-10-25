@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   decode, filterJobs, sortJobs, countBy, median, salaryBy, salaryText, juta, ribu, ago, dateText, timeText,
   slug, karirhubUrl, initials, htmlToText, filtersFromQuery, filtersToQuery, activeCount, summarize, cityLabel, tidy, typeLabel, findMajor, majorFilter, MAJORS,
-  EMPTY_FILTERS, detailShard, yearsFrom, buildJobSuggestions, buildMajorSuggestions, matchSuggestions, splitMatch, prettyTitle, suggestKey, CATEGORY_BY_KEY
+  EMPTY_FILTERS, detailShard, yearsFrom, buildJobSuggestions, buildMajorSuggestions, matchSuggestions, splitMatch, prettyTitle, suggestKey, CATEGORY_BY_KEY, placeLabel
 } from './logic.js';
 
 const NOW = 1791943200; // 14 Okt 2026 06.00 WIB
@@ -323,4 +323,10 @@ test('kategori fresh graduate dan MT memakai label hasil pemeriksaan deskripsi',
   assert.equal(fresh(job({ fn: 'Fresh Graduate' })), true);
   assert.equal(mt(job({ titleFold: 'management trainee 2026' })), true);
   assert.equal(CATEGORY_BY_KEY.get('bumn').test(job({ coFold: 'pt bina karya (persero)' })), true);
+});
+
+test('lokasi nasional ditampilkan "Seluruh Indonesia"', () => {
+  assert.equal(placeLabel({ city: '', province: '', tags: 12 }), 'Seluruh Indonesia');
+  assert.equal(placeLabel({ city: '', province: '', tags: 4 }), 'Indonesia');
+  assert.equal(placeLabel({ city: 'Kota Adm. Jakarta Selatan', province: 'DKI Jakarta', tags: 0 }, true), 'Jakarta Selatan, DKI Jakarta');
 });

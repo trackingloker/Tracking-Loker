@@ -29,6 +29,8 @@ POST_CAP = 1000           # artikel baru yang dibuka per penarikan: cukup untuk 
 LIST_PAGES = 40           # halaman daftar maksimal bila API WordPress tidak tersedia
 BUDGET_SEC = 10 * 60
 WORKERS = 6
+# Naikkan bila cara membaca artikel berubah: semua artikel dalam jendela dibaca ulang sekali.
+PARSER_VERSION = 2
 # Bagian situs yang bukan artikel lowongan.
 RESERVED = {"page", "category", "tag", "blog", "author", "wp-content", "wp-json", "wp-admin", "wp-includes", "feed", "search",
             "about", "tentang", "kontak", "contact", "privacy-policy", "kebijakan-privasi", "disclaimer", "sitemap", "pasang-iklan",
@@ -425,15 +427,18 @@ def parse_post(page: str, link: str, refs: dict, now: datetime, posted_hint: int
                 where = karier.place(m.group(3), refs)
                 if where and where != ("", ""):
                     break
+        loc_text = " ".join(m.group(3) for m in (LOC_LINE.match(x.strip("\u2022 ").strip()) for x in sec_lines) if m and m.group(3))
         for guess in (where, karier.place(title, refs), meta_place):
             if guess and guess != ("", ""):
                 where = guess
                 break
         else:
             where = ("", "")
+        # Tanpa kota/provinsi tapi tertulis penempatan seluruh Indonesia: ditampilkan "Seluruh Indonesia".
+        national = where == ("", "") and bool(karier.NATIONWIDE.search(f"{meta['lokasi']} {loc_text} {section}"))
         ident = hashlib.md5(title.lower().encode()).hexdigest()[:8]
         # Label dari kualifikasi posisi ini; kategori "Fresh Graduate" hanya berlaku bila tidak ada syarat pengalaman.
-        tags = karier.job_tags(title, section, "", " | ".join(cats))
+        tags = karier.job_tags(title, section, "", " | ".join(cats)) | (karier.TAG_NATIONAL if national else 0)
         function = labels["function"]
         if function == "Fresh Graduate" and not tags & karier.TAG_FRESH:
             function = ""
@@ -532,7 +537,7 @@ def fetch(refs: dict, prev: dict, now: datetime | None = None, state: dict | Non
         note = state.get(p["link"]) or {}
         if p["posted"] and p["posted"] < cutoff:
             continue
-        unchanged = note and (not p["modified"] or p["modified"] <= note.get("m", 0))
+        unchanged = note and note.get("v") == PARSER_VERSION and (not p["modified"] or p["modified"] <= note.get("m", 0))
         if unchanged:
             if note.get("p", 0) >= cutoff:
                 jobs += [dict(j) for j in known.get(p["link"], [])]
@@ -562,7 +567,7 @@ def fetch(refs: dict, prev: dict, now: datetime | None = None, state: dict | Non
             opened += 1
             found, info = result
             parsed += bool(found)
-            state[p["link"]] = {"m": p["modified"] or int(now.timestamp()), "p": info["tanggal"]}
+            state[p["link"]] = {"m": p["modified"] or int(now.timestamp()), "p": info["tanggal"], "v": PARSER_VERSION}
             jobs += found
     jobs = [j for j in jobs if j["posted"] >= cutoff and (not j["expires"] or j["expires"] >= now.timestamp())]
     jobs = dedupe(jobs)

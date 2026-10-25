@@ -2,7 +2,7 @@
 import {
   decode, filterJobs, sortJobs, countBy, salaryBy, summarize, salaryText, juta, ribu, ago, dateText, timeText,
   karirhubUrl, initials, hue, htmlToText, filtersFromQuery, filtersToQuery, activeCount, cityLabel, fold, detailShard, yearsFrom,
-  EMPTY_FILTERS, MAJORS, findMajor, isCompanySite, CATEGORIES, CATEGORY_BY_KEY, buildJobSuggestions, buildMajorSuggestions, matchSuggestions, splitMatch, EDU_CHOICES, EDU_SHORT, EDU_LEVEL, GAJI_CHOICES, WAKTU_CHOICES, SORTS, DIRECT, KARIRHUB_DETAIL_API
+  EMPTY_FILTERS, MAJORS, findMajor, isCompanySite, CATEGORIES, CATEGORY_BY_KEY, placeLabel, buildJobSuggestions, buildMajorSuggestions, matchSuggestions, splitMatch, EDU_CHOICES, EDU_SHORT, EDU_LEVEL, GAJI_CHOICES, WAKTU_CHOICES, SORTS, DIRECT, KARIRHUB_DETAIL_API
 } from './logic.js';
 import {
   readCV, pdfLines, recommend, whyText, atsReport, keywordTips, compareJob, storable, isStrong, sourcesOf, matchMajor,
@@ -383,7 +383,7 @@ function logoHTML(job, cls = '') {
 }
 
 function place(job) {
-  return cityLabel(job.city) || job.province || 'Indonesia';
+  return placeLabel(job);
 }
 
 function cardHTML(job, closed = false, extra = '') {
@@ -863,7 +863,7 @@ function openJob(id) {
   const saved = state.saved.some((s) => s.id === id);
   const kh = karirhubUrl(job);
   const facts = [
-    ['Lokasi', [cityLabel(job.city), job.province].filter(Boolean).join(', ') || 'Indonesia'],
+    ['Lokasi', placeLabel(job, true)],
     ['Tipe pekerjaan', job.type],
     ['Pendidikan minimal', job.edu],
     ['Bidang', job.fn],

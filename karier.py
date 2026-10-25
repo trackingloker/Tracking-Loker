@@ -225,6 +225,12 @@ def _tidy_lines(text: str, limit: int = DESC_LIMIT) -> str:
 TAG_FRESH = 1      # terbuka untuk fresh graduate / tanpa pengalaman, menurut judul, deskripsi, atau kualifikasinya
 TAG_MT = 2         # program Management Trainee / ODP / sejenisnya
 TAG_CHECKED = 4    # deskripsinya sudah diperiksa (lowongan tanpa label pun ditandai supaya tidak diperiksa ulang)
+TAG_NATIONAL = 8   # penempatan di seluruh Indonesia (lokasinya memang tidak satu kota/provinsi)
+NATIONWIDE = re.compile(
+    r"seluruh (wilayah |kota di |daerah di |cabang di )?indonesia|se-?indonesia|seluruh (wilayah|cabang|area) (kerja|operasional)?|"
+    r"wilayah operasional|nationwide|all over indonesia|across indonesia|berbagai (kota|wilayah|daerah|provinsi)|"
+    r"(penempatan|lokasi)[^.\n]{0,20}\bnasional\b", re.I)
+INTERN_TITLE = re.compile(r"intern(ship)?|magang|\bpkl\b|praktik kerja|kerja praktek", re.I)
 
 FRESH_SAYS = re.compile(
     r"fresh ?grad|lulusan baru|baru lulus|baru saja lulus|tanpa pengalaman|belum (memiliki |punya |ada )?pengalaman|"
@@ -280,8 +286,10 @@ def job_tags(title: str, text: str = "", function: str = "", categories: str = "
     if FRESH_SAYS.search(title) or (not senior and (FRESH_SAYS.search(body) or function == "Fresh Graduate"
                                                      or (re.search(r"fresh ?grad", categories, re.I) and not needs_exp))):
         tags |= TAG_FRESH
-    if not senior and (MT_TITLE.search(title) or function == "Management Trainee" or MT_TEXT.search(body)
-                       or re.search(r"(?<![a-z])(mt|odp)(?![a-z])|management trainee", categories, re.I)):
+    # Kategori MT dari situs pengumpul berlaku untuk satu artikel; posisi magang di dalamnya bukan program MT.
+    from_category = bool(re.search(r"(?<![a-z])(mt|odp)(?![a-z])|management trainee", categories, re.I)) \
+        and not INTERN_TITLE.search(title)
+    if not senior and (MT_TITLE.search(title) or function == "Management Trainee" or MT_TEXT.search(body) or from_category):
         tags |= TAG_MT
     return tags
 
@@ -801,7 +809,8 @@ GENERIC = re.compile(
     r"^(apply( now| here| di sini)?|lamar( sekarang)?|daftar( sekarang)?|ajukan( sekarang)?|kirim lamaran|"
     r"lihat( detail| lowongan| selengkapnya| posisi)?|detail( job| pekerjaan| lowongan| posisi)?( vacancy)?|"
     r"detil pekerjaan|selengkapnya|learn more|read more|more|view( job| details?)?|see (more|details?|vacancies)|"
-    r"klik( di ?sini)?|click here|info(rmasi)? lengkap|job details?|details?|>+|»|→|\W*)$", re.I)
+    r"klik( di ?sini)?( untuk (melamar|mendaftar|daftar|apply))?|click here( to apply)?|info(rmasi)? lengkap|job details?|"
+    r"details?|requirements?:?|kualifikasi:?|persyaratan:?|>+|»|→|\W*)$", re.I)
 DEADLINE = re.compile(
     r"(lamar sebelum|batas(?: akhir)?(?: waktu)?(?: pendaftaran| lamaran| melamar)?|deadline|closing date|close date|"
     r"berakhir(?: pada)?|ditutup(?: pada)?|apply before|valid until|until|hingga|s\.?d\.?)\s*:?\s*"
@@ -1458,6 +1467,73 @@ def _snippets(page: str, final: str) -> list[str]:
     return out
 
 
+PROBE_WORD = re.compile(r"vacanc|lowongan|loker|/jobs?\b|job-?list|joblist|career|karir|position|posisi|opening|requisition", re.I)
+PROBE_SKIP = re.compile(r"\.(js|css|png|jpe?g|svg|gif|webp|ico|woff2?|pdf)(\?|$)|auth|login|register|token|recaptcha|google|facebook|"
+                        r"instagram|linkedin|twitter|x\.com|youtube|play\.google|apple\.com|wa\.me|mailto", re.I)
+
+
+def bundle_context(scripts: list[str], limit: int = 14) -> list[str]:
+    """Potongan kode di sekitar alamat API lowongan dalam berkas JavaScript, untuk melihat parameter yang dipakai."""
+    out: list[str] = []
+    picks = [s for s in scripts if re.search(r"(main|app|index|bundle|chunk|_next/static|runtime)", s, re.I)
+             and not re.search(r"(jquery|bootstrap|gtag|analytics|recaptcha|cloudflare|polyfill)", s, re.I)][:5]
+    for src in picks:
+        try:
+            code, _ = get_text(src)
+        except Exception:  # noqa: BLE001
+            continue
+        for m in re.finditer(r"[\"'`]([^\"'`\s]{3,160})[\"'`]", code):
+            val = m.group(1)
+            if not PROBE_WORD.search(val) or PROBE_SKIP.search(val) or not re.search(r"/|api|get|list|search", val, re.I):
+                continue
+            snippet = re.sub(r"\s+", " ", code[max(0, m.start() - 170):m.end() + 170])
+            if not any(val in o for o in out):
+                out.append(snippet)
+            if len(out) >= limit:
+                return out
+    return out
+
+
+def probe_apis(entry: dict, deadline: float) -> list[dict]:
+    """Coba alamat API lowongan yang ditemukan di halaman/berkas JavaScript, catat jawabannya (untuk merancang adapter)."""
+    found = list(entry.get("api_skrip") or []) + list(entry.get("api") or []) + list(entry.get("api_relatif") or [])
+    final = entry.get("akhir") or entry.get("url") or ""
+    parts = urlsplit(final)
+    origin = f"{parts.scheme}://{parts.netloc}"
+    bases = [u for u in found if u.startswith("http") and re.search(r"/api/?$|/api/v\d+/?$|service\.|api\.|webapi/?$", u, re.I)][:3]
+    cands: list[str] = []
+    for u in found:
+        if not PROBE_WORD.search(u) or PROBE_SKIP.search(u) or ":" in u.split("//")[-1].split("/", 1)[-1]:
+            continue
+        if u.startswith("http"):
+            cands.append(u)
+        else:
+            path = u if u.startswith("/") else "/" + u
+            cands += [b.rstrip("/") + path for b in bases] + [origin + path]
+    out: list[dict] = []
+    for url in dict.fromkeys(cands):
+        if len(out) >= 14 or time.monotonic() > deadline:
+            break
+        row: dict = {"url": url[:220]}
+        for method in ("GET", "POST"):
+            try:
+                status, _, ctype, body = request(url, data=b"{}" if method == "POST" else None, tries=1, timeout=10,
+                                                 headers={"Accept": "application/json, text/plain, */*",
+                                                          **({"Content-Type": "application/json"} if method == "POST" else {})})
+                row.update({"cara": method, "status": status, "jenis": (ctype or "")[:40], "ukuran": len(body),
+                            "awal": re.sub(r"\s+", " ", _decode(body, ctype))[:320]})
+                break
+            except HTTPError as err:
+                row.update({"cara": method, "status": err.code})
+                if err.code != 405:
+                    break
+            except Exception as err:  # noqa: BLE001
+                row.update({"cara": method, "status": 0, "galat": str(err)[:120]})
+                break
+        out.append(row)
+    return out
+
+
 def _bundle_apis(scripts: list[str]) -> list[str]:
     """Untuk situs aplikasi (SPA): cari alamat API dan jalur lowongan di berkas JavaScript utamanya."""
     hits: list[str] = []
@@ -1535,7 +1611,7 @@ def _sitemap(origin: str) -> dict:
     return out
 
 
-CHECK_BUDGET_SEC = 150   # per perusahaan, supaya cek semua perusahaan selesai jauh di bawah 30 menit
+CHECK_BUDGET_SEC = 200   # per perusahaan, supaya cek semua perusahaan selesai jauh di bawah 30 menit
 
 
 def check_company(company: dict, refs: dict) -> dict:
@@ -1557,6 +1633,9 @@ def check_company(company: dict, refs: dict) -> dict:
             entry.update({"status": status, "akhir": final, **inspect_page(page, final)})
             if entry["ukuran"] < 25_000 and entry["skrip"]:
                 entry["api_skrip"] = _bundle_apis(entry["skrip"])
+                # Situs aplikasi (isi dimuat JavaScript): catat potongan kode dan coba alamat API lowongannya.
+                entry["kode_api"] = bundle_context(entry["skrip"])
+                entry["coba_api"] = probe_apis(entry, deadline)
             found = cards(page, final, {"pola": company.get("pola") or JOB_LINK})
             entry["kartu"] = {"jumlah": len(found), "tanpa_judul": sum(1 for j in found if j["_detail"]),
                               "contoh": [[j["title"], j["loc"][:80], j["link"]] for j in found[:8]]}
@@ -1625,7 +1704,7 @@ def check_company(company: dict, refs: dict) -> dict:
     return result
 
 
-def check_all(companies: list[dict], refs: dict, workers: int = 12) -> list[dict]:
+def check_all(companies: list[dict], refs: dict, workers: int = 16) -> list[dict]:
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = [pool.submit(check_company, c, refs) for c in companies]
         results = []
